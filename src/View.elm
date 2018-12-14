@@ -30,16 +30,28 @@ view model =
   div [ class "view" ]
     [ node "style" [] [ text css ]
 
-    , div []
-        [ h1 [ class "thanks" ] [ text "Thanks for watching!" ]
-        , case model.login of
-          Just name -> h2 [ class "host-command" ] [ text ("/host " ++ name) ]
-          Nothing ->
-            case model.userId of
-              Just _ -> text ""
-              Nothing -> displayNameEntryBox model.login
-        ]
+    , if List.isEmpty model.hosts then
+        div []
+          [ h1 [ class "thanks" ] [ text "Thanks for watching!" ]
+          , case model.login of
+            Just name -> h2 [ class "host-command" ] [ text ("/host " ++ name) ]
+            Nothing ->
+              case model.userId of
+                Just _ -> text ""
+                Nothing -> displayNameEntryBox model.login
+          ]
+      else
+        div []
+          [ h1 [ class "thanks" ] [ text "Thanks for hosting!" ]
+          , model.hosts
+            |> List.map displayHost
+            |> ul []
+          ]
     ]
+
+displayHost : Host -> Html Msg
+displayHost host =
+  li [] [ h3 [] [ text host.hostDisplayName ] ]
 
 displayNameEntryBox : Maybe String -> Html Msg
 displayNameEntryBox login =
