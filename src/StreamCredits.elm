@@ -61,8 +61,8 @@ init flags location key =
 
 update msg model =
   case msg of
-    UI (View.None) ->
-      (model, Cmd.none)
+    UI (View.SetUsername username) ->
+      ( model, fetchUserByName username )
     CurrentUrl location ->
       ( { model | location = location }, Cmd.none)
     Navigate (Browser.Internal url) ->

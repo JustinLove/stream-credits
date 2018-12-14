@@ -2,10 +2,11 @@ module View exposing (Msg(..), Host, document, view)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events
+import Html.Events exposing (on)
+import Json.Decode
 
 type Msg
-  = None
+  = SetUsername String
 
 type alias Host =
   { hostId : String
@@ -28,5 +29,33 @@ document tagger model =
 view model = 
   div [ class "view" ]
     [ node "style" [] [ text css ]
-    , text "view"
+
+    , div []
+        [ h1 [ class "thanks" ] [ text "Thanks for watching!" ]
+        , case model.login of
+          Just name -> h2 [ class "host-command" ] [ text ("/host " ++ name) ]
+          Nothing ->
+            case model.userId of
+              Just _ -> text ""
+              Nothing -> displayNameEntryBox model.login
+        ]
     ]
+
+displayNameEntryBox : Maybe String -> Html Msg
+displayNameEntryBox login =
+  div [ class "name-entry" ]
+    [ label [ for "channelname" ] [ text "Channel Name" ]
+    , text " "
+    , input
+      [ type_ "text"
+      , id "channelname"
+      , name "channelname"
+      , placeholder (Maybe.withDefault "" login)
+      , on "change" <| targetValue Json.Decode.string SetUsername
+      ] []
+    ]
+
+targetValue : Json.Decode.Decoder a -> (a -> Msg) -> Json.Decode.Decoder Msg
+targetValue decoder tagger =
+  Json.Decode.map tagger
+    (Json.Decode.at ["target", "value" ] decoder)
