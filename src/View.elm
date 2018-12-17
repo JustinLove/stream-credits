@@ -1,8 +1,13 @@
 module View exposing (Msg(..), Host, document, view)
 
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (on)
+import Element exposing (..)
+import Element.Background as Background
+import Element.Region as Region
+import Element.Font as Font
+import Element.Input as Input
+import Html exposing (Html)
+import Html.Attributes
+--import Html.Events exposing (on)
 import Json.Decode
 import Svg exposing (svg, use)
 import Svg.Attributes exposing (xlinkHref)
@@ -21,9 +26,8 @@ body {
   background-color: rgb(23, 20, 31);
   color: rgb(218, 216, 222);
 }
-footer {
-  position: fixed;
-  bottom: 0;
+.view {
+  height: 100%;
 }
 svg.icon {
   display: inline-block;
@@ -47,66 +51,73 @@ document tagger model =
   }
 
 view model = 
-  div [ class "view" ]
-    [ node "style" [] [ text css ]
-
-    , if List.isEmpty model.hosts then
-        div []
-          [ h1 [ class "thanks" ] [ text "Thanks for watching!" ]
-          , case model.login of
-            Just name -> h2 [ class "host-command" ] [ text ("/host " ++ name) ]
-            Nothing ->
-              case model.userId of
-                Just _ -> text ""
-                Nothing -> displayNameEntryBox model.login
-          ]
-      else
-        div []
-          [ h1 [ class "thanks" ] [ text "Thanks for hosting!" ]
-          , model.hosts
-            |> List.map displayHost
-            |> ul []
-          ]
-    , displayFooter
+  Html.div [ Html.Attributes.class "view" ]
+    [ Html.node "style" [] [ Html.text css ]
+    , layout
+      [ Background.color (rgb255 23 20 31)
+      , Font.color (rgb255 218 216 222)
+      , height fill
+      ] <|
+      column [ height fill, width fill ]
+        [ if List.isEmpty model.hosts then
+            column []
+              [ el [ Region.heading 1 ] (text "Thanks for watching!")
+              , case model.login of
+                Just name -> el [ Region.heading 2 ] (text ("/host " ++ name))
+                Nothing ->
+                  case model.userId of
+                    Just _ -> text ""
+                    Nothing -> displayNameEntryBox model.login
+              ]
+          else
+            column [ centerX ]
+              [ el [ Region.heading 1 ] ( text "Thanks for hosting!" )
+              , model.hosts
+                |> List.map displayHost
+                |> column []
+              ]
+        , displayFooter
+        ]
     ]
 
-displayHost : Host -> Html Msg
+displayHost : Host -> Element Msg
 displayHost host =
-  li [] [ h3 [] [ text host.hostDisplayName ] ]
+  el [ Region.heading 3 ] (text host.hostDisplayName)
 
-displayNameEntryBox : Maybe String -> Html Msg
+displayNameEntryBox : Maybe String -> Element Msg
 displayNameEntryBox login =
-  div [ class "name-entry" ]
-    [ label [ for "channelname" ] [ text "Channel Name" ]
-    , text " "
-    , input
-      [ type_ "text"
-      , id "channelname"
-      , name "channelname"
-      , placeholder (Maybe.withDefault "" login)
-      , on "change" <| targetValue Json.Decode.string SetUsername
-      ] []
-    ]
+  Input.username
+    []
+    { label = Input.labelRight [] (text "Channel Name")
+    , placeholder = Maybe.map (text >> (Input.placeholder [])) login
+    , onChange = SetUsername
+    , text = ""
+    }
 
 targetValue : Json.Decode.Decoder a -> (a -> Msg) -> Json.Decode.Decoder Msg
 targetValue decoder tagger =
   Json.Decode.map tagger
     (Json.Decode.at ["target", "value" ] decoder)
 
-displayFooter : Html msg
+displayFooter : Element msg
 displayFooter =
-  footer []
-    [ a [ href "https://github.com/JustinLove/stream-credits" ]
-      [ icon "github", text "stream-credits" ]
-    , text " "
-    , a [ href "https://twitter.com/wondible" ]
-      [ icon "twitter", text "@wondible" ]
-    , text " "
-    , a [ href "https://twitch.tv/wondible" ]
-      [ icon "twitch", text "wondible" ]
+  row [ Region.footer, spacing 10, alignBottom]
+    [ link []
+      { url = "https://github.com/JustinLove/stream-credits"
+      , label = row [] [ icon "github", text "stream-credits" ]
+      }
+    , link []
+      { url = "https://twitter.com/wondible"
+      , label = row [] [ icon "twitter", text "@wondible" ]
+      }
+    , link []
+      { url = "https://twitch.tv/wondible"
+      , label = row [] [ icon "twitch", text "wondible" ]
+      }
     ]
 
-icon : String -> Html msg
+icon : String -> Element msg
 icon name =
   svg [ Svg.Attributes.class ("icon icon-"++name) ]
     [ use [ xlinkHref ("symbol-defs.svg#icon-"++name) ] [] ]
+  |> html
