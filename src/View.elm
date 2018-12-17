@@ -7,7 +7,7 @@ import Element.Font as Font
 import Element.Input as Input
 import Html exposing (Html)
 import Html.Attributes
---import Html.Events exposing (on)
+import Html.Events exposing (on)
 import Json.Decode
 import Svg exposing (svg, use)
 import Svg.Attributes exposing (xlinkHref)
@@ -100,13 +100,18 @@ displayHost host =
 
 displayNameEntryBox : Maybe String -> Element Msg
 displayNameEntryBox login =
-  Input.username
-    []
-    { label = Input.labelRight [] (text "Channel Name")
-    , placeholder = Maybe.map (text >> (Input.placeholder [])) login
-    , onChange = SetUsername
-    , text = ""
-    }
+  html <|
+    Html.div [ Html.Attributes.class "name-entry" ]
+      [ Html.label [ Html.Attributes.for "channelname" ] [ Html.text "Channel Name" ]
+      , Html.text " "
+      , Html.input
+        [ Html.Attributes.type_ "text"
+        , Html.Attributes.id "channelname"
+        , Html.Attributes.name "channelname"
+        , Html.Attributes.placeholder (Maybe.withDefault "" login)
+        , on "change" <| targetValue Json.Decode.string SetUsername
+        ] []
+      ]
 
 targetValue : Json.Decode.Decoder a -> (a -> Msg) -> Json.Decode.Decoder Msg
 targetValue decoder tagger =
