@@ -55,8 +55,12 @@ view model =
     [ Html.node "style" [] [ Html.text css ]
     , layout
       [ Background.color (rgb255 23 20 31)
-      , Font.color (rgb255 218 216 222)
       , height fill
+      , Font.color (rgb255 218 216 222)
+      , Font.size (scaled 1)
+      , Font.family
+        [ Font.typeface "Times New Roman"
+        ]
       ] <|
       column [ height fill, width fill ]
         [ if List.isEmpty model.hosts then
@@ -70,11 +74,17 @@ view model =
                     Nothing -> displayNameEntryBox model.login
               ]
           else
-            column [ centerX ]
-              [ el [ Region.heading 1 ] ( text "Thanks for hosting!" )
+            column [ width fill, spacing 20]
+              [ el
+                [ Region.heading 1
+                , Font.size (scaled 4)
+                , Font.bold
+                , centerX
+                ]
+                ( text "Thanks for hosting!" )
               , model.hosts
                 |> List.map displayHost
-                |> column []
+                |> column [ centerX, spacing 8 ]
               ]
         , displayFooter
         ]
@@ -82,7 +92,11 @@ view model =
 
 displayHost : Host -> Element Msg
 displayHost host =
-  el [ Region.heading 3 ] (text host.hostDisplayName)
+  el
+    [ Region.heading 3
+    , Font.bold
+    ]
+    (text host.hostDisplayName)
 
 displayNameEntryBox : Maybe String -> Element Msg
 displayNameEntryBox login =
@@ -101,7 +115,7 @@ targetValue decoder tagger =
 
 displayFooter : Element msg
 displayFooter =
-  row [ Region.footer, spacing 10, alignBottom]
+  row [ Region.footer, spacing 10, alignBottom, Font.size (scaled -2) ]
     [ link []
       { url = "https://github.com/JustinLove/stream-credits"
       , label = row [] [ icon "github", text "stream-credits" ]
@@ -121,3 +135,5 @@ icon name =
   svg [ Svg.Attributes.class ("icon icon-"++name) ]
     [ use [ xlinkHref ("symbol-defs.svg#icon-"++name) ] [] ]
   |> html
+
+scaled = modular 20 1.25 >> round
