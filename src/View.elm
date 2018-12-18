@@ -1,4 +1,4 @@
-module View exposing (Msg(..), Host, document, view, creditsOff)
+module View exposing (Msg(..), Host, Follow, document, view, creditsOff)
 
 import Element exposing (..)
 import Element.Background as Background
@@ -18,6 +18,10 @@ type Msg
 type alias Host =
   { hostId : String
   , hostDisplayName : String
+  }
+
+type alias Follow =
+  { fromName : String
   }
 
 
@@ -87,30 +91,41 @@ view model =
           else
             column
               [ width fill
-              , spacing (headingSpacing model.windowHeight)
+              , spacing (sectionSpacing model.windowHeight)
               , moveDown ((toFloat model.windowHeight) + leadingGap - (model.timeElapsed * (scrollSpeed model.windowHeight)))
               ]
-              [ el
-                [ Region.heading 1
-                , Font.size (headingFontSize model.windowHeight)
-                , Font.bold
-                , centerX
-                ]
-                ( text "Thanks for hosting!" )
-              , model.hosts
-                |> List.map displayHost
-                |> column [ centerX, spacing (creditSpacing model.windowHeight) ]
+              [ model.hosts
+                |> List.map .hostDisplayName
+                |> displaySection model.windowHeight "Thanks for hosting!"
+              , model.follows
+                |> List.map .fromName
+                |> displaySection model.windowHeight "Thanks for following!"
               ]
         ]
     ]
 
-displayHost : Host -> Element Msg
-displayHost host =
+displaySection : Int -> String -> List String -> Element Msg
+displaySection height title items =
+  column [ spacing (headingSpacing height), width fill]
+    [ el
+      [ Region.heading 1
+      , Font.size (headingFontSize height)
+      , Font.bold
+      , centerX
+      ]
+      ( text title )
+    , items
+      |> List.map displayItem
+      |> column [ centerX, spacing (creditSpacing height) ]
+    ]
+
+displayItem : String -> Element Msg
+displayItem item =
   el
     [ Region.heading 3
     , Font.bold
     ]
-    (text host.hostDisplayName)
+    (text item)
 
 displayNameEntryBox : Maybe String -> Element Msg
 displayNameEntryBox login =
@@ -162,11 +177,17 @@ creditsOff model =
 
 --creditSize : Model -> Int
 creditSize model =
-  (List.length model.hosts) * creditFontSize model.windowHeight
-  + ((List.length model.hosts) - 1) * creditSpacing model.windowHeight
+  leadingGap
   + headingFontSize model.windowHeight
   + headingSpacing model.windowHeight
-  + leadingGap + trailingGap
+  + (List.length model.hosts) * creditFontSize model.windowHeight
+  + ((List.length model.hosts) - 1) * creditSpacing model.windowHeight
+  + sectionSpacing model.windowHeight
+  + headingFontSize model.windowHeight
+  + headingSpacing model.windowHeight
+  + (List.length model.follows) * creditFontSize model.windowHeight
+  + ((List.length model.follows) - 1) * creditSpacing model.windowHeight
+  + trailingGap
 
 scrollSpeed : Int -> Float
 scrollSpeed height = ((toFloat height)/10)/1000
@@ -175,6 +196,7 @@ creditFontSize height = scaled height 1
 creditSpacing height = scaled height -5
 headingFontSize height = scaled height 4
 headingSpacing height = scaled height 1
+sectionSpacing height = scaled height 6
 leadingGap = 60
 trailingGap = 60
 

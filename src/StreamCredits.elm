@@ -1,6 +1,6 @@
 module StreamCredits exposing (..)
 
-import View exposing (Host)
+import View exposing (Host, Follow)
 
 
 import Browser
@@ -26,6 +26,7 @@ type Msg
   | FrameStep Float
   | Hosts (Result Http.Error (List Tmi.Host))
   | User (Result Http.Error (List Helix.User))
+  | Follows (Result Http.Error (List Helix.Follow))
 
 type alias Model =
   { location : Url
@@ -36,6 +37,7 @@ type alias Model =
   , login : Maybe String
   , userId : Maybe String
   , hosts : List Host
+  , follows : List Follow
   }
 
 main = Browser.application
@@ -61,11 +63,21 @@ init flags location key =
     , login = mlogin
     , userId = muserId
     , hosts = []
+    , follows = []
     }
   , Cmd.batch 
     [ ( case (muserId, mlogin) of
-        (Just id, Just login) -> fetchHosts id
-        (Just id, Nothing) -> Cmd.batch [ fetchUserById id, fetchHosts id ]
+        (Just id, Just login) ->
+          Cmd.batch
+            [ fetchHosts id
+            , fetchFollows id
+            ]
+        (Just id, Nothing) ->
+          Cmd.batch
+            [ fetchUserById id
+            , fetchHosts id
+            , fetchFollows id
+            ]
         (Nothing, Just login) -> fetchUserByName login
         (Nothing, Nothing) -> Cmd.none
       )
@@ -130,6 +142,15 @@ update msg model =
     Hosts (Err error) ->
       let _ = Debug.log "hosts fetch error" error in
       (model, Cmd.none)
+    Follows (Ok twitchFollows) ->
+      ( { model
+        | follows = List.map myFollow twitchFollows
+        }
+      , Cmd.none
+      )
+    Follows (Err error) ->
+      let _ = Debug.log "follows fetch error" error in
+      (model, Cmd.none)
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
@@ -158,6 +179,25 @@ fetchHosts id =
     , expect = Http.expectJson Hosts Tmi.hosts
     , timeout = Nothing
     , tracker = Nothing
+    }
+
+myFollow : Helix.Follow -> Follow
+myFollow follow =
+  { fromName = follow.fromName
+  }
+
+fetchFollowsUrl : String -> String
+fetchFollowsUrl id =
+  "https://api.twitch.tv/helix/users/follows?to_id=" ++ id
+
+fetchFollows : String -> Cmd Msg
+fetchFollows id =
+  Helix.send <|
+    { clientId = TwitchId.clientId
+    , auth = Nothing
+    , decoder = Helix.follows
+    , tagger = Follows
+    , url = (fetchFollowsUrl id)
     }
 
 fetchUserByNameUrl : String -> String
