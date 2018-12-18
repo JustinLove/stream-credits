@@ -64,14 +64,25 @@ view model =
       ] <|
       column [ height fill, width fill, clip, behindContent displayFooter ]
         [ if List.isEmpty model.hosts then
-            column []
-              [ el [ Region.heading 1 ] (text "Thanks for watching!")
-              , case model.login of
-                Just name -> el [ Region.heading 2 ] (text ("/host " ++ name))
-                Nothing ->
-                  case model.userId of
-                    Just _ -> text ""
-                    Nothing -> displayNameEntryBox model.login
+            column
+              [ width fill
+              , spacing (headingSpacing model.windowHeight)
+              , centerY
+              ]
+              [ el
+                [ Region.heading 1
+                , Font.size (headingFontSize model.windowHeight)
+                , Font.bold
+                , centerX
+                ]
+                (text "Thanks for watching!")
+              , el [ centerX ] <|
+                case model.login of
+                  Just name -> text ""
+                  Nothing ->
+                    case model.userId of
+                      Just _ -> text ""
+                      Nothing -> displayNameEntryBox model.login
               ]
           else
             column
@@ -103,6 +114,7 @@ displayHost host =
 
 displayNameEntryBox : Maybe String -> Element Msg
 displayNameEntryBox login =
+  el [] <|
   html <|
     Html.div [ Html.Attributes.class "name-entry" ]
       [ Html.label [ Html.Attributes.for "channelname" ] [ Html.text "Channel Name" ]
