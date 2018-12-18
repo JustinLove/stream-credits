@@ -62,7 +62,7 @@ view model =
         [ Font.typeface "Times New Roman"
         ]
       ] <|
-      column [ height fill, width fill, clip ]
+      column [ height fill, width fill, clip, behindContent displayFooter ]
         [ if List.isEmpty model.hosts then
             column []
               [ el [ Region.heading 1 ] (text "Thanks for watching!")
@@ -90,7 +90,6 @@ view model =
                 |> List.map displayHost
                 |> column [ centerX, spacing (creditSpacing model.windowHeight) ]
               ]
-        , displayFooter
         ]
     ]
 
