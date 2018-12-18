@@ -1,4 +1,4 @@
-module View exposing (Msg(..), Host, document, view)
+module View exposing (Msg(..), Host, document, view, creditsOff)
 
 import Element exposing (..)
 import Element.Background as Background
@@ -57,7 +57,7 @@ view model =
       [ Background.color (rgb255 23 20 31)
       , height fill
       , Font.color (rgb255 218 216 222)
-      , Font.size (scaled 1)
+      , Font.size creditFontSize
       , Font.family
         [ Font.typeface "Times New Roman"
         ]
@@ -74,17 +74,21 @@ view model =
                     Nothing -> displayNameEntryBox model.login
               ]
           else
-            column [ width fill, spacing 20]
+            column
+              [ width fill
+              , spacing headingSpacing
+              , moveDown ((toFloat model.windowHeight) + leadingGap - (model.timeElapsed * scrollSpeed))
+              ]
               [ el
                 [ Region.heading 1
-                , Font.size (scaled 4)
+                , Font.size headingFontSize
                 , Font.bold
                 , centerX
                 ]
                 ( text "Thanks for hosting!" )
               , model.hosts
                 |> List.map displayHost
-                |> column [ centerX, spacing 8 ]
+                |> column [ centerX, spacing creditSpacing ]
               ]
         , displayFooter
         ]
@@ -140,5 +144,27 @@ icon name =
   svg [ Svg.Attributes.class ("icon icon-"++name) ]
     [ use [ xlinkHref ("symbol-defs.svg#icon-"++name) ] [] ]
   |> html
+
+--creditsOff : Model -> Bool
+creditsOff model =
+  round (model.timeElapsed * scrollSpeed) > (model.windowHeight + creditSize model.hosts)
+
+creditSize : List Host -> Int
+creditSize hosts =
+  (List.length hosts) * creditFontSize
+  + ((List.length hosts) - 1) * creditSpacing
+  + headingFontSize
+  + headingSpacing
+  + leadingGap + trailingGap
+
+scrollSpeed : Float
+scrollSpeed = 60/1000
+
+creditFontSize = scaled 1
+creditSpacing = scaled -5
+headingFontSize = scaled 4
+headingSpacing = scaled 1
+leadingGap = 60
+trailingGap = 60
 
 scaled = modular 20 1.25 >> round

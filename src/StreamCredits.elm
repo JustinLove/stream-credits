@@ -4,8 +4,11 @@ import View exposing (Host)
 
 
 import Browser
+import Browser.Dom as Dom
+import Browser.Events
 import Browser.Navigation as Navigation
 import Http
+import Task
 import Twitch.Helix as Helix
 import Twitch.Helix.Decode as Helix
 import Twitch.Tmi.Decode as Tmi
@@ -19,12 +22,17 @@ type Msg
   = UI (View.Msg)
   | CurrentUrl Url
   | Navigate Browser.UrlRequest
+  | WindowSize (Int, Int)
+  | FrameStep Float
   | Hosts (Result Http.Error (List Tmi.Host))
   | User (Result Http.Error (List Helix.User))
 
 type alias Model =
   { location : Url
   , navigationKey : Navigation.Key
+  , windowWidth : Int
+  , windowHeight : Int
+  , timeElapsed : Float
   , login : Maybe String
   , userId : Maybe String
   , hosts : List Host
@@ -47,16 +55,24 @@ init flags location key =
   in
   ( { location = location
     , navigationKey = key
+    , windowWidth  = 480
+    , windowHeight = 480
+    , timeElapsed = 0
     , login = mlogin
     , userId = muserId
     , hosts = []
     }
-  , ( case (muserId, mlogin) of
-      (Just id, Just login) -> fetchHosts id
-      (Just id, Nothing) -> Cmd.batch [ fetchUserById id, fetchHosts id ]
-      (Nothing, Just login) -> fetchUserByName login
-      (Nothing, Nothing) -> Cmd.none
-    )
+  , Cmd.batch 
+    [ ( case (muserId, mlogin) of
+        (Just id, Just login) -> fetchHosts id
+        (Just id, Nothing) -> Cmd.batch [ fetchUserById id, fetchHosts id ]
+        (Nothing, Just login) -> fetchUserByName login
+        (Nothing, Nothing) -> Cmd.none
+      )
+    , Dom.getViewport
+      |> Task.map (\viewport -> (round viewport.viewport.width, round viewport.viewport.height))
+      |> Task.perform WindowSize
+    ]
   )
 
 update msg model =
@@ -69,6 +85,13 @@ update msg model =
       ( {model | location = url}
       , Navigation.pushUrl model.navigationKey (Url.toString url)
       )
+    WindowSize (width, height) ->
+      ( {model | windowWidth = width, windowHeight = height}, Cmd.none)
+    FrameStep delta ->
+      if View.creditsOff model then
+        ( {model | timeElapsed = delta }, Cmd.none )
+      else
+        ( {model | timeElapsed = model.timeElapsed + delta }, Cmd.none )
     Navigate (Browser.External url) ->
       (model, Navigation.load url)
     User (Ok (user::_)) ->
@@ -110,7 +133,10 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  Sub.none
+  Sub.batch
+    [ Browser.Events.onResize (\w h -> WindowSize (w, h))
+    , Browser.Events.onAnimationFrameDelta FrameStep
+    ]
 
 myHost : Tmi.Host -> Host
 myHost host =
