@@ -57,12 +57,12 @@ view model =
       [ Background.color (rgb255 23 20 31)
       , height fill
       , Font.color (rgb255 218 216 222)
-      , Font.size creditFontSize
+      , Font.size (creditFontSize model.windowHeight)
       , Font.family
         [ Font.typeface "Times New Roman"
         ]
       ] <|
-      column [ height fill, width fill ]
+      column [ height fill, width fill, clip ]
         [ if List.isEmpty model.hosts then
             column []
               [ el [ Region.heading 1 ] (text "Thanks for watching!")
@@ -76,19 +76,19 @@ view model =
           else
             column
               [ width fill
-              , spacing headingSpacing
-              , moveDown ((toFloat model.windowHeight) + leadingGap - (model.timeElapsed * scrollSpeed))
+              , spacing (headingSpacing model.windowHeight)
+              , moveDown ((toFloat model.windowHeight) + leadingGap - (model.timeElapsed * (scrollSpeed model.windowHeight)))
               ]
               [ el
                 [ Region.heading 1
-                , Font.size headingFontSize
+                , Font.size (headingFontSize model.windowHeight)
                 , Font.bold
                 , centerX
                 ]
                 ( text "Thanks for hosting!" )
               , model.hosts
                 |> List.map displayHost
-                |> column [ centerX, spacing creditSpacing ]
+                |> column [ centerX, spacing (creditSpacing model.windowHeight) ]
               ]
         , displayFooter
         ]
@@ -124,7 +124,7 @@ targetValue decoder tagger =
 
 displayFooter : Element msg
 displayFooter =
-  row [ Region.footer, spacing 10, alignBottom, Font.size (scaled -2) ]
+  row [ Region.footer, spacing 10, alignBottom, Font.size (scaled 500 -2) ]
     [ link []
       { url = "https://github.com/JustinLove/stream-credits"
       , label = row [] [ icon "github", text "stream-credits" ]
@@ -147,24 +147,24 @@ icon name =
 
 --creditsOff : Model -> Bool
 creditsOff model =
-  round (model.timeElapsed * scrollSpeed) > (model.windowHeight + creditSize model.hosts)
+  round (model.timeElapsed * (scrollSpeed model.windowHeight)) > (model.windowHeight + creditSize model)
 
-creditSize : List Host -> Int
-creditSize hosts =
-  (List.length hosts) * creditFontSize
-  + ((List.length hosts) - 1) * creditSpacing
-  + headingFontSize
-  + headingSpacing
+--creditSize : Model -> Int
+creditSize model =
+  (List.length model.hosts) * creditFontSize model.windowHeight
+  + ((List.length model.hosts) - 1) * creditSpacing model.windowHeight
+  + headingFontSize model.windowHeight
+  + headingSpacing model.windowHeight
   + leadingGap + trailingGap
 
-scrollSpeed : Float
-scrollSpeed = 60/1000
+scrollSpeed : Int -> Float
+scrollSpeed height = ((toFloat height)/10)/1000
 
-creditFontSize = scaled 1
-creditSpacing = scaled -5
-headingFontSize = scaled 4
-headingSpacing = scaled 1
+creditFontSize height = scaled height 1
+creditSpacing height = scaled height -5
+headingFontSize height = scaled height 4
+headingSpacing height = scaled height 1
 leadingGap = 60
 trailingGap = 60
 
-scaled = modular 20 1.25 >> round
+scaled height = modular (max ((toFloat height)/30) 15) 1.25 >> round
