@@ -59,7 +59,7 @@ view model =
       , Font.color (rgb255 218 216 222)
       , Font.size (creditFontSize model.windowHeight)
       , Font.family
-        [ Font.typeface "Times New Roman"
+        [ Font.typeface "Helvetica"
         ]
       ] <|
       column [ height fill, width fill, clip, behindContent displayFooter ]
