@@ -9,6 +9,7 @@ import Browser.Events
 import Browser.Navigation as Navigation
 import Http
 import Task
+import Time
 import Twitch.Helix as Helix
 import Twitch.Helix.Decode as Helix
 import Twitch.Tmi.Decode as Tmi
@@ -27,6 +28,7 @@ type Msg
   | Hosts (Result Http.Error (List Tmi.Host))
   | User (Result Http.Error (List Helix.User))
   | Follows (Result Http.Error (List Helix.Follow))
+  | CurrentStream (Result Http.Error (List Helix.Stream))
 
 type alias Model =
   { location : Url
@@ -38,6 +40,8 @@ type alias Model =
   , userId : Maybe String
   , hosts : List Host
   , follows : List Follow
+  , currentFollows : List Follow
+  , streamStart : Int
   }
 
 main = Browser.application
@@ -64,19 +68,16 @@ init flags location key =
     , userId = muserId
     , hosts = []
     , follows = []
+    , currentFollows = []
+    , streamStart = 0
     }
   , Cmd.batch 
     [ ( case (muserId, mlogin) of
-        (Just id, Just login) ->
+        (Just id, _) ->
           Cmd.batch
             [ fetchHosts id
             , fetchFollows id
-            ]
-        (Just id, Nothing) ->
-          Cmd.batch
-            [ fetchUserById id
-            , fetchHosts id
-            , fetchFollows id
+            , fetchStreamById id
             ]
         (Nothing, Just login) -> fetchUserByName login
         (Nothing, Nothing) -> Cmd.none
@@ -144,13 +145,37 @@ update msg model =
       let _ = Debug.log "hosts fetch error" error in
       (model, Cmd.none)
     Follows (Ok twitchFollows) ->
+      let
+        follows = List.map myFollow twitchFollows
+      in
       ( { model
-        | follows = List.map myFollow twitchFollows
+        | follows = follows
+        , currentFollows = List.filter (\follow -> follow.followedAt > model.streamStart) follows
         }
       , Cmd.none
       )
     Follows (Err error) ->
       let _ = Debug.log "follows fetch error" error in
+      (model, Cmd.none)
+    CurrentStream (Ok (stream::_)) ->
+      let
+        start = (Time.posixToMillis stream.startedAt)
+      in
+      ( { model
+        | streamStart = start
+        , currentFollows = List.filter (\follow -> follow.followedAt > start) model.follows
+        }
+      , Cmd.none
+      )
+    CurrentStream (Ok _) ->
+      let _ = Debug.log "no stream, not live?" "" in
+      ( { model
+        | streamStart = 0
+        }
+      , Cmd.none
+      )
+    CurrentStream (Err error) ->
+      let _ = Debug.log "stream fetch error" error in
       (model, Cmd.none)
 
 subscriptions : Model -> Sub Msg
@@ -185,6 +210,7 @@ fetchHosts id =
 myFollow : Helix.Follow -> Follow
 myFollow follow =
   { fromName = follow.fromName
+  , followedAt = Time.posixToMillis follow.followedAt
   }
 
 fetchFollowsUrl : String -> String
@@ -227,6 +253,20 @@ fetchUserById id =
     , decoder = Helix.users
     , tagger = User
     , url = (fetchUserByIdUrl id)
+    }
+
+fetchStreamByIdUrl : String -> String
+fetchStreamByIdUrl id =
+  "https://api.twitch.tv/helix/streams?user_id=" ++ id
+
+fetchStreamById : String -> Cmd Msg
+fetchStreamById id =
+  Helix.send <|
+    { clientId = TwitchId.clientId
+    , auth = Nothing
+    , decoder = Helix.streams
+    , tagger = CurrentStream
+    , url = (fetchStreamByIdUrl id)
     }
 
 extractSearchArgument : String -> Url -> Maybe String

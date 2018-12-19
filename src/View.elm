@@ -22,6 +22,7 @@ type alias Host =
 
 type alias Follow =
   { fromName : String
+  , followedAt : Int
   }
 
 
@@ -97,7 +98,7 @@ view model =
               [ model.hosts
                 |> List.map .hostDisplayName
                 |> displaySection model.windowHeight "Thanks for hosting!"
-              , model.follows
+              , model.currentFollows
                 |> List.map .fromName
                 |> displaySection model.windowHeight "Thanks for following!"
               ]
@@ -185,8 +186,8 @@ creditSize model =
   + sectionSpacing model.windowHeight
   + headingFontSize model.windowHeight
   + headingSpacing model.windowHeight
-  + (List.length model.follows) * creditFontSize model.windowHeight
-  + ((List.length model.follows) - 1) * creditSpacing model.windowHeight
+  + (List.length model.currentFollows) * creditFontSize model.windowHeight
+  + ((List.length model.currentFollows) - 1) * creditSpacing model.windowHeight
   + trailingGap
 
 scrollSpeed : Int -> Float
