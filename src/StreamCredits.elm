@@ -61,7 +61,7 @@ init flags location key =
   in
   ( { location = location
     , navigationKey = key
-    , windowWidth  = 480
+    , windowWidth = 480
     , windowHeight = 480
     , timeElapsed = 0
     , login = mlogin
@@ -91,7 +91,7 @@ init flags location key =
 update msg model =
   case msg of
     UI (View.SetUsername username) ->
-      ( model, fetchUserByName username )
+      ( { model | timeElapsed = 0 }, fetchUserByName username )
     CurrentUrl location ->
       ( { model | location = location }, Cmd.none)
     Navigate (Browser.Internal url) ->
@@ -121,6 +121,7 @@ update msg model =
             [ Navigation.pushUrl m2.navigationKey (createPath m2)
             , fetchHosts user.id
             , fetchFollows user.id
+            , fetchStreamById user.id
             ]
         else if (Just user.login) /= model.login then
           Cmd.batch

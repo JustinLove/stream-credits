@@ -34,6 +34,12 @@ body {
 .view {
   height: 100%;
 }
+.credits { animation: delay-appear 2s; }
+@keyframes delay-appear {
+  0% { opacity: 0; }
+  50% { opacity: 0; }
+  100% { opacity: 1; }
+}
 svg.icon {
   display: inline-block;
   width: 1em;
@@ -68,7 +74,7 @@ view model =
         ]
       ] <|
       column [ height fill, width fill, clip, behindContent displayFooter ]
-        [ if (List.isEmpty model.hosts) && (List.isEmpty model.currentFollows) then
+        [ if model.login == Nothing && model.userId == Nothing then
             column
               [ width fill
               , spacing (headingSpacing model.windowHeight)
@@ -82,20 +88,23 @@ view model =
                 ]
                 (text "Thanks for watching!")
               , el [ centerX ] <|
-                case model.login of
-                  Just name -> none
-                  Nothing ->
-                    case model.userId of
-                      Just _ -> none
-                      Nothing -> displayNameEntryBox model.login
+                displayNameEntryBox model.login
               ]
           else
             column
               [ width fill
               , spacing (sectionSpacing model.windowHeight)
               , moveDown ((toFloat model.windowHeight) + leadingGap - (model.timeElapsed * (scrollSpeed model.windowHeight)))
+              , htmlAttribute <| Html.Attributes.class "credits"
               ]
-              [ model.hosts
+              [ el
+                [ Region.heading 1
+                , Font.size (headingFontSize model.windowHeight)
+                , Font.bold
+                , centerX
+                ]
+                (text "Thanks for watching!")
+              , model.hosts
                 |> List.map .hostDisplayName
                 |> displaySection model.windowHeight "Thanks for hosting!"
               , model.currentFollows
