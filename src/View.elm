@@ -68,7 +68,7 @@ view model =
         ]
       ] <|
       column [ height fill, width fill, clip, behindContent displayFooter ]
-        [ if List.isEmpty model.hosts then
+        [ if (List.isEmpty model.hosts) && (List.isEmpty model.currentFollows) then
             column
               [ width fill
               , spacing (headingSpacing model.windowHeight)
@@ -83,10 +83,10 @@ view model =
                 (text "Thanks for watching!")
               , el [ centerX ] <|
                 case model.login of
-                  Just name -> text ""
+                  Just name -> none
                   Nothing ->
                     case model.userId of
-                      Just _ -> text ""
+                      Just _ -> none
                       Nothing -> displayNameEntryBox model.login
               ]
           else
@@ -107,18 +107,21 @@ view model =
 
 displaySection : Int -> String -> List String -> Element Msg
 displaySection height title items =
-  column [ spacing (headingSpacing height), width fill]
-    [ el
-      [ Region.heading 1
-      , Font.size (headingFontSize height)
-      , Font.bold
-      , centerX
+  if List.isEmpty items then
+    none
+  else
+    column [ spacing (headingSpacing height), width fill]
+      [ el
+        [ Region.heading 1
+        , Font.size (headingFontSize height)
+        , Font.bold
+        , centerX
+        ]
+        ( text title )
+      , items
+        |> List.map displayItem
+        |> column [ centerX, spacing (creditSpacing height) ]
       ]
-      ( text title )
-    , items
-      |> List.map displayItem
-      |> column [ centerX, spacing (creditSpacing height) ]
-    ]
 
 displayItem : String -> Element Msg
 displayItem item =
