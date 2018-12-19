@@ -119,6 +119,7 @@ update msg model =
           Cmd.batch
             [ Navigation.pushUrl m2.navigationKey (createPath m2)
             , fetchHosts user.id
+            , fetchFollows user.id
             ]
         else if (Just user.login) /= model.login then
           Cmd.batch
