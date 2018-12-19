@@ -27,6 +27,7 @@ type Msg
   | FrameStep Float
   | Hosts (Result Http.Error (List Tmi.Host))
   | User (Result Http.Error (List Helix.User))
+  | Self (Result Http.Error (List Helix.User))
   | Follows (Result Http.Error (List Helix.Follow))
   | CurrentStream (Result Http.Error (List Helix.Stream))
 
@@ -38,6 +39,8 @@ type alias Model =
   , timeElapsed : Float
   , login : Maybe String
   , userId : Maybe String
+  , auth : Maybe String
+  , authLogin : Maybe String
   , hosts : List Host
   , follows : List Follow
   , currentFollows : List Follow
@@ -58,6 +61,7 @@ init flags location key =
   let
     mlogin = extractSearchArgument "login" location
     muserId = extractSearchArgument "userId" location
+    mauth = extractHashArgument "access_token" location
   in
   ( { location = location
     , navigationKey = key
@@ -66,6 +70,8 @@ init flags location key =
     , timeElapsed = 0
     , login = mlogin
     , userId = muserId
+    , auth = mauth
+    , authLogin = Nothing
     , hosts = []
     , follows = []
     , currentFollows = []
@@ -82,6 +88,7 @@ init flags location key =
         (Nothing, Just login) -> fetchUserByName login
         (Nothing, Nothing) -> Cmd.none
       )
+    , fetchSelf mauth
     , Dom.getViewport
       |> Task.map (\viewport -> (round viewport.viewport.width, round viewport.viewport.height))
       |> Task.perform WindowSize
@@ -135,6 +142,22 @@ update msg model =
       (model, Cmd.none)
     User (Err error) ->
       let _ = Debug.log "user fetch error" error in
+      (model, Cmd.none)
+    Self (Ok (user::_)) ->
+      let
+        m2 =
+          { model
+          | authLogin = Just user.login
+          }
+      in
+      ( m2
+      , Cmd.none
+      )
+    Self (Ok _) ->
+      let _ = Debug.log "self lookup did not find a user" "" in
+      (model, Cmd.none)
+    Self (Err error) ->
+      let _ = Debug.log "self fetch error" error in
       (model, Cmd.none)
     Hosts (Ok twitchHosts) ->
       ( { model
@@ -256,6 +279,23 @@ fetchUserById id =
     , url = (fetchUserByIdUrl id)
     }
 
+fetchSelfUrl : String
+fetchSelfUrl =
+  "https://api.twitch.tv/helix/users"
+
+fetchSelf : Maybe String -> Cmd Msg
+fetchSelf auth =
+  if auth == Nothing then
+    Cmd.none
+  else
+    Helix.send <|
+      { clientId = TwitchId.clientId
+      , auth = auth
+      , decoder = Helix.users
+      , tagger = Self
+      , url = fetchSelfUrl
+      }
+
 fetchStreamByIdUrl : String -> String
 fetchStreamByIdUrl id =
   "https://api.twitch.tv/helix/streams?user_id=" ++ id
@@ -276,6 +316,12 @@ extractSearchArgument key location =
     |> Url.Parser.parse (Url.Parser.query (Url.Parser.Query.string key))
     |> Maybe.withDefault Nothing
 
+extractHashArgument : String -> Url -> Maybe String
+extractHashArgument key location =
+  { location | path = "", query = location.fragment }
+    |> Url.Parser.parse (Url.Parser.query (Url.Parser.Query.string key))
+    |> Maybe.withDefault Nothing
+
 createQueryString : Model -> List Url.QueryParameter
 createQueryString model =
   [ Maybe.map (Url.string "userId") model.userId
@@ -285,4 +331,4 @@ createQueryString model =
 
 createPath : Model -> String
 createPath model =
-  Url.relative [] (createQueryString model)
+  Url.custom Url.Relative [] (createQueryString model) (Maybe.map (\token -> "access_token=" ++ token) model.auth)

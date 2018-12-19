@@ -1,5 +1,7 @@
 module View exposing (Msg(..), Host, Follow, document, view, creditsOff)
 
+import TwitchId
+
 import Element exposing (..)
 import Element.Background as Background
 import Element.Region as Region
@@ -11,6 +13,8 @@ import Html.Events exposing (on)
 import Json.Decode
 import Svg exposing (svg, use)
 import Svg.Attributes exposing (xlinkHref)
+import Url exposing (Url)
+import Url.Builder as Url
 
 type Msg
   = SetUsername String
@@ -73,7 +77,7 @@ view model =
         [ Font.typeface "Helvetica"
         ]
       ] <|
-      column [ height fill, width fill, clip, behindContent displayFooter ]
+      column [ height fill, width fill, clip, inFront (displayFooter model) ]
         [ if model.login == Nothing && model.userId == Nothing then
             column
               [ width fill
@@ -89,6 +93,8 @@ view model =
                 (text "Thanks for watching!")
               , el [ centerX ] <|
                 displayNameEntryBox model.login
+              , el [ centerX ] <|
+                displayLogin model
               ]
           else
             column
@@ -156,13 +162,45 @@ displayNameEntryBox login =
         ] []
       ]
 
+displayLogin model =
+  case model.auth of
+    Just _ ->
+      row [ spacing (scaled model.windowHeight -2) ]
+        [ text <| Maybe.withDefault "--" model.authLogin
+        , link []
+            { url = (Url.relative [] [])
+            , label = text "logout"
+            }
+        ]
+    Nothing ->
+      link []
+        { url = authorizeUrl (urlForRedirect model.location)
+        , label = row [] [ icon "twitch", text "login" ]
+        }
+
+authorizeUrl : String -> String
+authorizeUrl redirectUri =
+  "https://api.twitch.tv/kraken/oauth2/authorize"
+    ++ (
+      [ Url.string "client_id" TwitchId.clientId
+      , Url.string "redirect_uri" redirectUri
+      , Url.string "response_type" "token"
+      ]
+      |> Url.toQuery
+      )
+
+urlForRedirect : Url -> String
+urlForRedirect url =
+  {url | query = Nothing, fragment = Nothing } |> Url.toString
+
+
 targetValue : Json.Decode.Decoder a -> (a -> Msg) -> Json.Decode.Decoder Msg
 targetValue decoder tagger =
   Json.Decode.map tagger
     (Json.Decode.at ["target", "value" ] decoder)
 
-displayFooter : Element msg
-displayFooter =
+--displayFooter : Model -> Element msg
+displayFooter model =
   row [ Region.footer, spacing 10, alignBottom, Font.size (scaled 500 -2) ]
     [ link []
       { url = "https://github.com/JustinLove/stream-credits"
@@ -176,6 +214,7 @@ displayFooter =
       { url = "https://twitch.tv/wondible"
       , label = row [] [ icon "twitch", text "wondible" ]
       }
+    , displayLogin model
     ]
 
 icon : String -> Element msg
