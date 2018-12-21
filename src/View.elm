@@ -185,6 +185,7 @@ authorizeUrl redirectUri =
       [ Url.string "client_id" TwitchId.clientId
       , Url.string "redirect_uri" redirectUri
       , Url.string "response_type" "token"
+      , Url.string "scope" "chat:read"
       ]
       |> Url.toQuery
       )

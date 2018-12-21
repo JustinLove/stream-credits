@@ -95,7 +95,7 @@ init flags location key =
     , Dom.getViewport
       |> Task.map (\viewport -> (round viewport.viewport.width, round viewport.viewport.height))
       |> Task.perform WindowSize
-    , PortSocket.connect "ws://localhost:4444"
+    , if mauth /= Nothing then PortSocket.connect "wss://irc-ws.chat.twitch.tv:443" else Cmd.none
     ]
   )
 
@@ -205,12 +205,31 @@ update msg model =
     CurrentStream (Err error) ->
       let _ = Debug.log "stream fetch error" error in
       (model, Cmd.none)
+    WebSocketTest id (PortSocket.Error value) ->
+      let _ = Debug.log "websocket error" value in
+      (model, Cmd.none)
     WebSocketTest id PortSocket.Open ->
       let _ = Debug.log "websocket open" id in
-      (model, PortSocket.send id "hi")
-    WebSocketTest id event ->
-      let _ = Debug.log "websocket event" event in
+      Maybe.map2 (\auth login -> 
+        (model, Cmd.batch
+          -- order is reversed, because elm feels like it
+          [ PortSocket.send id ("NICK " ++ login)
+          , PortSocket.send id ("PASS oauth:" ++ auth)
+          ])
+        )
+        model.auth
+        model.authLogin
+      |> Maybe.withDefault (model, Cmd.none)
+    WebSocketTest id PortSocket.Close ->
+      let _ = Debug.log "websocket closed" id in
       (model, Cmd.none)
+    WebSocketTest id (PortSocket.Message message) ->
+      let _ = Debug.log "websocket message" message in
+      case message of
+        "PING :tmi.twitch.tv\r\n" -> 
+          let _ = Debug.log "PONG" "" in
+          (model, PortSocket.send id ("PONG :tmi.twitch.tv"))
+        _ -> (model, Cmd.none)
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
