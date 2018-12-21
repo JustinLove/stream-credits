@@ -1,8 +1,8 @@
 module StreamCredits exposing (..)
 
 import PortSocket
+import Twitch.Tmi.Chat as Chat
 import View exposing (Host, Follow)
-
 
 import Browser
 import Browser.Dom as Dom
@@ -10,6 +10,7 @@ import Browser.Events
 import Browser.Navigation as Navigation
 import Http
 import Json.Decode as Decode
+import Parser.Advanced as Parser
 import Task
 import Time
 import Twitch.Helix as Helix
@@ -229,7 +230,9 @@ update msg model =
         "PING :tmi.twitch.tv\r\n" -> 
           let _ = Debug.log "PONG" "" in
           (model, PortSocket.send id ("PONG :tmi.twitch.tv"))
-        _ -> (model, Cmd.none)
+        _ ->
+          let _ = Debug.log "parse" (Parser.run Chat.messages message) in
+          (model, Cmd.none)
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
