@@ -1,5 +1,6 @@
 module StreamCredits exposing (..)
 
+import PortSocket
 import View exposing (Host, Follow)
 
 
@@ -8,6 +9,7 @@ import Browser.Dom as Dom
 import Browser.Events
 import Browser.Navigation as Navigation
 import Http
+import Json.Decode as Decode
 import Task
 import Time
 import Twitch.Helix as Helix
@@ -30,6 +32,7 @@ type Msg
   | Self (Result Http.Error (List Helix.User))
   | Follows (Result Http.Error (List Helix.Follow))
   | CurrentStream (Result Http.Error (List Helix.Stream))
+  | WebSocketTest PortSocket.Id PortSocket.Event
 
 type alias Model =
   { location : Url
@@ -92,6 +95,7 @@ init flags location key =
     , Dom.getViewport
       |> Task.map (\viewport -> (round viewport.viewport.width, round viewport.viewport.height))
       |> Task.perform WindowSize
+    , PortSocket.connect "ws://localhost:4444"
     ]
   )
 
@@ -201,12 +205,19 @@ update msg model =
     CurrentStream (Err error) ->
       let _ = Debug.log "stream fetch error" error in
       (model, Cmd.none)
+    WebSocketTest id PortSocket.Open ->
+      let _ = Debug.log "websocket open" id in
+      (model, PortSocket.send id "hi")
+    WebSocketTest id event ->
+      let _ = Debug.log "websocket event" event in
+      (model, Cmd.none)
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.batch
     [ Browser.Events.onResize (\w h -> WindowSize (w, h))
     , Browser.Events.onAnimationFrameDelta FrameStep
+    , PortSocket.receive WebSocketTest
     ]
 
 myHost : Tmi.Host -> Host
