@@ -7,6 +7,7 @@ module Twitch.Tmi.Chat exposing
   , command
   , params
   , sampleConnectionMessage
+  , samplePingMessage
   , deadEndsToString
   )
 
@@ -98,6 +99,8 @@ params =
         chompUntilEndOr "\r\n")
 
 sampleConnectionMessage = ":tmi.twitch.tv 001 wondibot :Welcome, GLHF!\r\n:tmi.twitch.tv 002 wondibot :Your host is tmi.twitch.tv\r\n:tmi.twitch.tv 003 wondibot :This server is rather new\r\n:tmi.twitch.tv 004 wondibot :-\r\n:tmi.twitch.tv 375 wondibot :-\r\n:tmi.twitch.tv 372 wondibot :You are in a maze of twisty passages, all alike.\r\n:tmi.twitch.tv 376 wondibot :>\r\n"
+
+samplePingMessage = "PING :tmi.twitch.tv\r\n"
 
 deadEndsToString : List (DeadEnd Context Problem) -> String
 deadEndsToString deadEnds =
