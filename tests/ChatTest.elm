@@ -12,21 +12,21 @@ import Test exposing (Test, describe, test)
 suite : Test
 suite =
   describe "Twitch IRC Parsing"
-    [ describe "connection messages"
+    [ describe "connection message"
       [ test "breaks lines" <|
         \_ ->
           Chat.sampleConnectionMessage
-              |> Parser.run Chat.messages
+              |> Parser.run Chat.message
               |> Debug.log "parsed chat"
               |> resultOk (List.length >> (Expect.equal 7))
       ]
-    , describe "connection message"
+    , describe "connection line"
       [ test "line one" <|
         \_ ->
           ":tmi.twitch.tv 001 wondibot :Welcome, GLHF!\r\n"
-              |> Parser.run Chat.message
+              |> Parser.run Chat.line
               |> Debug.log "parsed line"
-              |> isOk
+              |> Expect.equal (Ok (Chat.Line "tmi.twitch.tv" "001" "Welcome, GLHF!"))
       ]
     , describe "prefix"
       [ test "domain name" <|

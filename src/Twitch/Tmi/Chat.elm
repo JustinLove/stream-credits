@@ -1,6 +1,8 @@
 module Twitch.Tmi.Chat exposing
-  ( messages
+  ( Message
   , message
+  , Line
+  , line
   , prefix
   , command
   , params
@@ -22,8 +24,8 @@ type alias Message = List Line
 type alias Context = String
 type alias Problem = String
 
-messages : MessageParser Message
-messages =
+message : MessageParser Message
+message =
   inContext "parsing an batch of IRC messages" <|
     loop [] messageStep
 
@@ -31,18 +33,23 @@ messageStep : Message -> MessageParser (Step Message Message)
 messageStep reverseMessages =
   oneOf
     [ succeed (\m -> Loop (m :: reverseMessages))
-      |= message
+      |= line
       |. spaces
     , succeed ()
       |> map (\_ -> Done (List.reverse reverseMessages))
     ]
 
-message : MessageParser Line
-message =
+line : MessageParser Line
+line =
   inContext "parsing an IRC message" <|
-    map (Line "" "") <|
-      getChompedString <|
-        chompUntil (Token "\r\n" "Looking for end of line")
+    succeed Line
+      |. symbol (Token ":" "Expecting line to start with :")
+      |= prefix
+      |. spaces
+      |= command
+      |. spaces
+      |= params
+      |. symbol (Token "\r\n" "Looking for end of line")
 
 prefix : MessageParser String
 prefix =
