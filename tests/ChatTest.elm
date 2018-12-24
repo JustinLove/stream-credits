@@ -12,13 +12,43 @@ import Test exposing (Test, describe, test)
 suite : Test
 suite =
   describe "Twitch IRC Parsing"
-    [ describe "connection message"
+    [ describe "connection messages"
       [ test "breaks lines" <|
         \_ ->
           Chat.sampleConnectionMessage
               |> Parser.run Chat.messages
               |> Debug.log "parsed chat"
               |> resultOk (List.length >> (Expect.equal 7))
+      ]
+    , describe "connection message"
+      [ test "line one" <|
+        \_ ->
+          ":tmi.twitch.tv 001 wondibot :Welcome, GLHF!\r\n"
+              |> Parser.run Chat.message
+              |> Debug.log "parsed line"
+              |> isOk
+      ]
+    , describe "prefix"
+      [ test "domain name" <|
+        \_ ->
+          "tmi.twitch.tv"
+              |> Parser.run Chat.prefix
+              |> Debug.log "parsed prefix"
+              |> Expect.equal (Ok "tmi.twitch.tv")
+      ]
+    , describe "command"
+      [ test "numeric" <|
+        \_ ->
+          "001"
+              |> Parser.run Chat.command
+              |> Debug.log "parsed command"
+              |> Expect.equal (Ok "001")
+      , test "alpha" <|
+        \_ ->
+          "PING"
+              |> Parser.run Chat.command
+              |> Debug.log "parsed command"
+              |> Expect.equal (Ok "PING")
       ]
     ]
 
