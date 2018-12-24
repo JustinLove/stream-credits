@@ -50,6 +50,14 @@ suite =
               |> Debug.log "parsed command"
               |> Expect.equal (Ok "PING")
       ]
+    , describe "params"
+      [ test "welcome message" <|
+        \_ ->
+          "wondibot :Welcome, GLHF!"
+              |> Parser.run Chat.params
+              |> Debug.log "parsed params"
+              |> Expect.equal (Ok "Welcome, GLHF!")
+      ]
     ]
 
 
