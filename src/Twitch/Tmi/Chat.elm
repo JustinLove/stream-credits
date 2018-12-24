@@ -1,4 +1,8 @@
-module Twitch.Tmi.Chat exposing (messages, deadEndsToString)
+module Twitch.Tmi.Chat exposing
+  ( messages
+  , sampleConnectionMessage
+  , deadEndsToString
+  )
 
 import Parser.Advanced exposing (..)
 import Char
