@@ -25,6 +25,12 @@ suite =
               |> Parser.run Chat.message
               --|> Debug.log "parsed chat"
               |> resultOk (List.length >> (Expect.equal 1))
+      , test "names message" <|
+        \_ ->
+          Chat.sampleNamesMessage
+              |> Parser.run Chat.message
+              --|> Debug.log "parsed chat"
+              |> resultOk (List.length >> (Expect.equal 2))
       ]
     , describe "line types"
       [ test "connection line" <|
@@ -41,7 +47,12 @@ suite =
           \_ ->
             Chat.sampleJoinMessage
                 |> Parser.run Chat.line
-                |> Expect.equal (Ok (Chat.Line (Just "wondibot!wondibot@wondibot.tmi.twitch.tv") "JOIN" ["wondible"]))
+                |> Expect.equal (Ok (Chat.Line (Just "wondibot!wondibot@wondibot.tmi.twitch.tv") "JOIN" ["#wondible"]))
+      , test "chat line" <|
+          \_ ->
+            Chat.sampleChatMessage
+                |> Parser.run Chat.line
+                |> Expect.equal (Ok (Chat.Line (Just "wondible!wondible@wondible.tmi.twitch.tv") "PRIVMSG" ["#wondible", "test"]))
       ]
     , describe "prefix"
       [ test "domain name" <|

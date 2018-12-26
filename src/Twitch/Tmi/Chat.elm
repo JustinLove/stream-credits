@@ -10,6 +10,7 @@ module Twitch.Tmi.Chat exposing
   , samplePingMessage
   , sampleJoinMessage
   , sampleNamesMessage
+  , sampleChatMessage
   , deadEndsToString
   )
 
@@ -159,9 +160,11 @@ sampleConnectionMessage = ":tmi.twitch.tv 001 wondibot :Welcome, GLHF!\r\n:tmi.t
 
 samplePingMessage = "PING :tmi.twitch.tv\r\n"
 
-sampleJoinMessage = ":wondibot!wondibot@wondibot.tmi.twitch.tv JOIN wondible\r\n"
+sampleJoinMessage = ":wondibot!wondibot@wondibot.tmi.twitch.tv JOIN #wondible\r\n"
 
-sampleNamesMessage = ":wondibot.tmi.twitch.tv 353 wondibot = wondible :wondibot\r\n:wondibot.tmi.twitch.tv 366 wondibot wondible :End of /NAMES list\r\n"
+sampleNamesMessage = ":wondibot.tmi.twitch.tv 353 wondibot = #wondible :wondibot\r\n:wondibot.tmi.twitch.tv 366 wondibot #wondible :End of /NAMES list\r\n"
+
+sampleChatMessage = ":wondible!wondible@wondible.tmi.twitch.tv PRIVMSG #wondible :test\r\n"
 
 deadEndsToString : List (DeadEnd Context Problem) -> String
 deadEndsToString deadEnds =
