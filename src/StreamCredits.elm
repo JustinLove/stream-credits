@@ -214,7 +214,10 @@ update msg model =
       Maybe.map2 (\auth login -> 
         (model, Cmd.batch
           -- order is reversed, because elm feels like it
-          [ PortSocket.send id ("NICK " ++ login)
+          [ model.login
+            |> Maybe.map (\channel -> PortSocket.send id ("JOIN " ++ channel))
+            |> Maybe.withDefault Cmd.none
+          , PortSocket.send id ("NICK " ++ login)
           , PortSocket.send id ("PASS oauth:" ++ auth)
           ])
         )
@@ -231,7 +234,7 @@ update msg model =
           let _ = Debug.log "PONG" "" in
           (model, PortSocket.send id ("PONG :tmi.twitch.tv"))
         _ ->
-          let _ = Debug.log "parse" (Parser.run Chat.messages message) in
+          let _ = Debug.log "parse" (Parser.run Chat.message message) in
           (model, Cmd.none)
 
 subscriptions : Model -> Sub Msg
