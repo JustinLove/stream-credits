@@ -17,23 +17,35 @@ suite =
         \_ ->
           Chat.sampleConnectionMessage
               |> Parser.run Chat.message
-              |> Debug.log "parsed chat"
+              --|> Debug.log "parsed chat"
               |> resultOk (List.length >> (Expect.equal 7))
+      , test "single line" <|
+        \_ ->
+          Chat.samplePingMessage
+              |> Parser.run Chat.message
+              --|> Debug.log "parsed chat"
+              |> resultOk (List.length >> (Expect.equal 1))
       ]
     , describe "connection line"
       [ test "line one" <|
         \_ ->
           ":tmi.twitch.tv 001 wondibot :Welcome, GLHF!\r\n"
               |> Parser.run Chat.line
-              |> Debug.log "parsed line"
-              |> Expect.equal (Ok (Chat.Line "tmi.twitch.tv" "001" "Welcome, GLHF!"))
+              --|> Debug.log "parsed line"
+              |> Expect.equal (Ok (Chat.Line (Just "tmi.twitch.tv") "001" "Welcome, GLHF!"))
       ]
-    , describe "prefix"
+    , test "ping line" <|
+        \_ ->
+          Chat.samplePingMessage
+              |> Parser.run Chat.line
+              --|> Debug.log "parsed line"
+              |> Expect.equal (Ok (Chat.Line Nothing "PING" "tmi.twitch.tv"))
+    , describe "serverName"
       [ test "domain name" <|
         \_ ->
           "tmi.twitch.tv"
-              |> Parser.run Chat.prefix
-              |> Debug.log "parsed prefix"
+              |> Parser.run Chat.serverName
+              --|> Debug.log "parsed serverName"
               |> Expect.equal (Ok "tmi.twitch.tv")
       ]
     , describe "command"
@@ -41,13 +53,13 @@ suite =
         \_ ->
           "001"
               |> Parser.run Chat.command
-              |> Debug.log "parsed command"
+              --|> Debug.log "parsed command"
               |> Expect.equal (Ok "001")
       , test "alpha" <|
         \_ ->
           "PING"
               |> Parser.run Chat.command
-              |> Debug.log "parsed command"
+              --|> Debug.log "parsed command"
               |> Expect.equal (Ok "PING")
       ]
     , describe "params"
@@ -55,7 +67,7 @@ suite =
         \_ ->
           "wondibot :Welcome, GLHF!"
               |> Parser.run Chat.params
-              |> Debug.log "parsed params"
+              --|> Debug.log "parsed params"
               |> Expect.equal (Ok "Welcome, GLHF!")
       ]
     ]

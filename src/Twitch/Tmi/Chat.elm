@@ -3,7 +3,7 @@ module Twitch.Tmi.Chat exposing
   , message
   , Line
   , line
-  , prefix
+  , serverName
   , command
   , params
   , sampleConnectionMessage
@@ -17,7 +17,7 @@ import Set
 
 type alias MessageParser a = Parser Context Problem a
 type alias Line =
-  { prefix : String
+  { prefix : Maybe String
   , command : String
   , params : String
   }
@@ -44,17 +44,26 @@ line : MessageParser Line
 line =
   inContext "parsing an IRC message" <|
     succeed Line
-      |. symbol (Token ":" "Expecting line to start with :")
       |= prefix
-      |. spaces
       |= command
       |. spaces
       |= params
       |. symbol (Token "\r\n" "Looking for end of line")
 
-prefix : MessageParser String
+prefix : MessageParser (Maybe String)
 prefix =
   inContext "parsing a prefix" <|
+    oneOf
+      [ succeed Just
+        |. symbol (Token ":" "Expecting line to start with :")
+        |= serverName
+        |. spaces
+      , succeed Nothing
+      ]
+
+serverName : MessageParser String
+serverName =
+  inContext "parsing a server name" <|
     variable
       { start = Char.isAlphaNum
       , inner = \c -> Char.isAlphaNum c || c == '.'
@@ -91,12 +100,18 @@ alphaCommand =
 params : MessageParser String
 params =
   inContext "parsing params" <|
-    succeed identity
-      |. (getChompedString <|
-        chompWhile (\c -> c /= ' '))
-      |. token (Token " :" "Looking for param separator")
-      |= (getChompedString <|
-        chompUntilEndOr "\r\n")
+    oneOf
+      [ succeed identity
+        |. token (Token ":" "Looking for param beginning")
+        |= (getChompedString <|
+          chompUntilEndOr "\r\n")
+      , succeed identity
+        |. (getChompedString <|
+          chompWhile (\c -> c /= ' '))
+        |. token (Token " :" "Looking for param separator")
+        |= (getChompedString <|
+          chompUntilEndOr "\r\n")
+      ]
 
 sampleConnectionMessage = ":tmi.twitch.tv 001 wondibot :Welcome, GLHF!\r\n:tmi.twitch.tv 002 wondibot :Your host is tmi.twitch.tv\r\n:tmi.twitch.tv 003 wondibot :This server is rather new\r\n:tmi.twitch.tv 004 wondibot :-\r\n:tmi.twitch.tv 375 wondibot :-\r\n:tmi.twitch.tv 372 wondibot :You are in a maze of twisty passages, all alike.\r\n:tmi.twitch.tv 376 wondibot :>\r\n"
 
