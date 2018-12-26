@@ -3,7 +3,7 @@ module Twitch.Tmi.Chat exposing
   , message
   , Line
   , line
-  , serverName
+  , prefix
   , command
   , params
   , sampleConnectionMessage
@@ -21,7 +21,7 @@ type alias MessageParser a = Parser Context Problem a
 type alias Line =
   { prefix : Maybe String
   , command : String
-  , params : String
+  , params : List String
   }
 type alias Message = List Line
 type alias Context = String
@@ -46,26 +46,54 @@ line : MessageParser Line
 line =
   inContext "parsing an IRC message" <|
     succeed Line
-      |= prefix
+      |= optionalPrefix
       |= command
-      |. spaces
       |= params
       |. symbol (Token "\r\n" "Looking for end of line")
 
-prefix : MessageParser (Maybe String)
-prefix =
+optionalPrefix : MessageParser (Maybe String)
+optionalPrefix =
   inContext "parsing a prefix" <|
     oneOf
       [ succeed Just
         |. symbol (Token ":" "Expecting line to start with :")
-        |= serverName
+        |= prefix
         |. spaces
       , succeed Nothing
       ]
 
-serverName : MessageParser String
-serverName =
-  inContext "parsing a server name" <|
+prefix : MessageParser String
+prefix =
+  inContext "parsing prefix" <|
+    oneOf
+      [ backtrackable fullyQualifiedUser
+      , host
+      ]
+
+fullyQualifiedUser : MessageParser String
+fullyQualifiedUser =
+  inContext "fully qualified user" <|
+    getChompedString <|
+      succeed ()
+        |. variable
+          { start = Char.isAlphaNum
+          , inner = \c -> Char.isAlphaNum c
+          , reserved = Set.empty
+          , expecting = "did not look like a nick"
+          }
+        |. symbol (Token "!" "looking for !")
+        |. variable
+          { start = Char.isAlphaNum
+          , inner = \c -> Char.isAlphaNum c
+          , reserved = Set.empty
+          , expecting = "did not look like a user name"
+          }
+        |. symbol (Token "@" "looking for @")
+        |. host
+
+host : MessageParser String
+host =
+  inContext "parsing a host" <|
     variable
       { start = Char.isAlphaNum
       , inner = \c -> Char.isAlphaNum c || c == '.'
@@ -99,21 +127,33 @@ alphaCommand =
       , expecting = "alpha character"
       }
 
-params : MessageParser String
+params : MessageParser (List String)
 params =
   inContext "parsing params" <|
-    oneOf
-      [ succeed identity
-        |. token (Token ":" "Looking for param beginning")
+    loop [] paramStep
+
+paramStep : List String -> MessageParser (Step (List String) (List String))
+paramStep reverseParams =
+  succeed identity
+    |. chompWhile (\c -> c == ' ')
+    |= oneOf
+      [ succeed (\m -> Done (List.reverse (m :: reverseParams)))
+        |. token (Token ":" "looking for : to begin trailing")
         |= (getChompedString <|
           chompUntilEndOr "\r\n")
-      , succeed identity
-        |. (getChompedString <|
-          chompWhile (\c -> c /= ' '))
-        |. token (Token " :" "Looking for param separator")
+      , succeed (\m -> Loop (m :: reverseParams))
         |= (getChompedString <|
-          chompUntilEndOr "\r\n")
+            succeed ()
+              |. chompIf middle "Could not find start of parameter"
+              |. chompWhile middle
+          )
+      , succeed ()
+        |> map (\_ -> Done (List.reverse reverseParams))
       ]
+
+middle : Char -> Bool
+middle c =
+  c /= ' ' && c /= '\r' && c /= '\n'
 
 sampleConnectionMessage = ":tmi.twitch.tv 001 wondibot :Welcome, GLHF!\r\n:tmi.twitch.tv 002 wondibot :Your host is tmi.twitch.tv\r\n:tmi.twitch.tv 003 wondibot :This server is rather new\r\n:tmi.twitch.tv 004 wondibot :-\r\n:tmi.twitch.tv 375 wondibot :-\r\n:tmi.twitch.tv 372 wondibot :You are in a maze of twisty passages, all alike.\r\n:tmi.twitch.tv 376 wondibot :>\r\n"
 

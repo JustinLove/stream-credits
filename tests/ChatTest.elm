@@ -12,7 +12,7 @@ import Test exposing (Test, describe, test)
 suite : Test
 suite =
   describe "Twitch IRC Parsing"
-    [ describe "connection message"
+    [ describe "messages"
       [ test "breaks lines" <|
         \_ ->
           Chat.sampleConnectionMessage
@@ -26,49 +26,63 @@ suite =
               --|> Debug.log "parsed chat"
               |> resultOk (List.length >> (Expect.equal 1))
       ]
-    , describe "connection line"
-      [ test "line one" <|
+    , describe "line types"
+      [ test "connection line" <|
         \_ ->
           ":tmi.twitch.tv 001 wondibot :Welcome, GLHF!\r\n"
               |> Parser.run Chat.line
-              --|> Debug.log "parsed line"
-              |> Expect.equal (Ok (Chat.Line (Just "tmi.twitch.tv") "001" "Welcome, GLHF!"))
+              |> Expect.equal (Ok (Chat.Line (Just "tmi.twitch.tv") "001" ["wondibot", "Welcome, GLHF!"]))
+      , test "ping line" <|
+          \_ ->
+            Chat.samplePingMessage
+                |> Parser.run Chat.line
+                |> Expect.equal (Ok (Chat.Line Nothing "PING" ["tmi.twitch.tv"]))
+      , test "join line" <|
+          \_ ->
+            Chat.sampleJoinMessage
+                |> Parser.run Chat.line
+                |> Expect.equal (Ok (Chat.Line (Just "wondibot!wondibot@wondibot.tmi.twitch.tv") "JOIN" ["wondible"]))
       ]
-    , test "ping line" <|
-        \_ ->
-          Chat.samplePingMessage
-              |> Parser.run Chat.line
-              --|> Debug.log "parsed line"
-              |> Expect.equal (Ok (Chat.Line Nothing "PING" "tmi.twitch.tv"))
-    , describe "serverName"
+    , describe "prefix"
       [ test "domain name" <|
         \_ ->
           "tmi.twitch.tv"
-              |> Parser.run Chat.serverName
-              --|> Debug.log "parsed serverName"
+              |> Parser.run Chat.prefix
               |> Expect.equal (Ok "tmi.twitch.tv")
+      , test "user" <|
+        \_ ->
+          "wondibot!wondibot@wondibot.tmi.twitch.tv"
+              |> Parser.run Chat.prefix
+              |> Expect.equal (Ok "wondibot!wondibot@wondibot.tmi.twitch.tv")
       ]
     , describe "command"
       [ test "numeric" <|
         \_ ->
           "001"
               |> Parser.run Chat.command
-              --|> Debug.log "parsed command"
               |> Expect.equal (Ok "001")
       , test "alpha" <|
         \_ ->
           "PING"
               |> Parser.run Chat.command
-              --|> Debug.log "parsed command"
               |> Expect.equal (Ok "PING")
       ]
     , describe "params"
-      [ test "welcome message" <|
+      [ test "two parts" <|
         \_ ->
           "wondibot :Welcome, GLHF!"
               |> Parser.run Chat.params
-              --|> Debug.log "parsed params"
-              |> Expect.equal (Ok "Welcome, GLHF!")
+              |> Expect.equal (Ok ["wondibot", "Welcome, GLHF!"])
+      , test "colon only" <|
+        \_ ->
+          ":tmi.twitch.tv"
+              |> Parser.run Chat.params
+              |> Expect.equal (Ok ["tmi.twitch.tv"])
+      , test "no colon only" <|
+        \_ ->
+          "wondible"
+              |> Parser.run Chat.params
+              |> Expect.equal (Ok ["wondible"])
       ]
     ]
 

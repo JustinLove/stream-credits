@@ -215,7 +215,7 @@ update msg model =
         (model, Cmd.batch
           -- order is reversed, because elm feels like it
           [ model.login
-            |> Maybe.map (\channel -> PortSocket.send id ("JOIN " ++ channel))
+            |> Maybe.map (\channel -> PortSocket.send id ("JOIN #" ++ channel))
             |> Maybe.withDefault Cmd.none
           , PortSocket.send id ("NICK " ++ login)
           , PortSocket.send id ("PASS oauth:" ++ auth)
