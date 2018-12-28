@@ -37,22 +37,46 @@ suite =
         \_ ->
           ":tmi.twitch.tv 001 wondibot :Welcome, GLHF!\r\n"
               |> Parser.run Chat.line
-              |> Expect.equal (Ok (Chat.Line (Just "tmi.twitch.tv") "001" ["wondibot", "Welcome, GLHF!"]))
+              |> Expect.equal (Ok (Chat.Line [] (Just "tmi.twitch.tv") "001" ["wondibot", "Welcome, GLHF!"]))
       , test "ping line" <|
           \_ ->
             Chat.samplePingMessage
                 |> Parser.run Chat.line
-                |> Expect.equal (Ok (Chat.Line Nothing "PING" ["tmi.twitch.tv"]))
+                |> Expect.equal (Ok (Chat.Line [] Nothing "PING" ["tmi.twitch.tv"]))
       , test "join line" <|
           \_ ->
             Chat.sampleJoinMessage
                 |> Parser.run Chat.line
-                |> Expect.equal (Ok (Chat.Line (Just "wondibot!wondibot@wondibot.tmi.twitch.tv") "JOIN" ["#wondible"]))
+                |> Expect.equal (Ok (Chat.Line [] (Just "wondibot!wondibot@wondibot.tmi.twitch.tv") "JOIN" ["#wondible"]))
       , test "chat line" <|
           \_ ->
             Chat.sampleChatMessage
                 |> Parser.run Chat.line
-                |> Expect.equal (Ok (Chat.Line (Just "wondible!wondible@wondible.tmi.twitch.tv") "PRIVMSG" ["#wondible", "test"]))
+                |> Expect.equal (Ok (Chat.Line [] (Just "wondible!wondible@wondible.tmi.twitch.tv") "PRIVMSG" ["#wondible", "test"]))
+      , test "tagged chat line" <|
+          \_ ->
+            Chat.sampleTaggedChatMessage
+                |> Parser.run Chat.line
+                |> Expect.equal (Ok (Chat.Line
+                  ( [ "badges=broadcaster/1"
+                    , "color=#1E90FF"
+                    , "display-name=wondible"
+                    , "emotes="
+                    , "flags="
+                    , "id=036fe963-8707-44a1-8fb2-e1412343825d"
+                    , "mod=0"
+                    , "room-id=56623426"
+                    , "subscriber=0"
+                    , "tmi-sent-ts=1546013301508"
+                    , "turbo=0"
+                    , "user-id=56623426"
+                    , "user-type="
+                    ]
+                  )
+                  (Just "wondible!wondible@wondible.tmi.twitch.tv")
+                  "PRIVMSG"
+                  ["#wondible", "test"])
+                )
       ]
     , describe "prefix"
       [ test "domain name" <|

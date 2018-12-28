@@ -227,10 +227,12 @@ update msg model =
       (model, Cmd.none)
     WebSocketTest id (PortSocket.Message message) ->
       let _ = Debug.log "websocket message" message in
-      (Parser.run Chat.message message)
-        |> Result.map (List.foldl (reduce (chatResponse id)) (model, Cmd.none))
-        |> Result.mapError (Debug.log "message parse failed")
-        |> Result.withDefault (model, Cmd.none)
+      case (Parser.run Chat.message message) of
+        Ok lines ->
+          List.foldl (reduce (chatResponse id)) (model, Cmd.none) lines
+        Err err ->
+          let _ = Debug.log "message parse failed" err in
+          (model, Cmd.none)
 
 chatResponse : PortSocket.Id -> Chat.Line -> Model -> (Model, Cmd Msg)
 chatResponse id line model =
@@ -248,9 +250,8 @@ chatResponse id line model =
       --let _ = Debug.log "logged in" "" in
       ( model
       , Cmd.batch
-        -- order is reversed, because elm feels like it
-        --[ PortSocket.send id "CAP REQ :twitch.tv/tags"
-        [ model.login
+        [ PortSocket.send id "CAP REQ :twitch.tv/tags"
+        , model.login
           |> Maybe.map (\channel -> PortSocket.send id ("JOIN #" ++ channel))
           |> Maybe.withDefault Cmd.none
         ]

@@ -11,6 +11,7 @@ module Twitch.Tmi.Chat exposing
   , sampleJoinMessage
   , sampleNamesMessage
   , sampleChatMessage
+  , sampleTaggedChatMessage
   , deadEndsToString
   )
 
@@ -20,7 +21,8 @@ import Set
 
 type alias MessageParser a = Parser Context Problem a
 type alias Line =
-  { prefix : Maybe String
+  { tags : List String
+  , prefix : Maybe String
   , command : String
   , params : List String
   }
@@ -40,6 +42,7 @@ messageStep reverseMessages =
       |= line
       |. spaces
     , succeed ()
+      |. end "unparsed trailing characters in message"
       |> map (\_ -> Done (List.reverse reverseMessages))
     ]
 
@@ -47,10 +50,34 @@ line : MessageParser Line
 line =
   inContext "parsing an IRC message" <|
     succeed Line
+      |= optionalTags
       |= optionalPrefix
       |= command
       |= params
       |. symbol (Token "\r\n" "Looking for end of line")
+
+optionalTags : MessageParser (List String)
+optionalTags =
+  inContext "parsing tags" <|
+    oneOf
+      [ sequence
+        { start = (Token "@" "Expecting line to start with @")
+        , separator = (Token ";" "Expecting tags to be separated with ;")
+        , end = (Token " " "Expecting tag list to be terminated with space")
+        , spaces = succeed ()
+        , item = tag
+        , trailing = Forbidden
+        }
+      , succeed []
+      ]
+
+tag : MessageParser String
+tag =
+  inContext "parsing tag" <|
+    (getChompedString <|
+      succeed ()
+        |. chompWhile (\c -> c /= ';' && c /= ' ')
+    )
 
 optionalPrefix : MessageParser (Maybe String)
 optionalPrefix =
@@ -165,6 +192,8 @@ sampleJoinMessage = ":wondibot!wondibot@wondibot.tmi.twitch.tv JOIN #wondible\r\
 sampleNamesMessage = ":wondibot.tmi.twitch.tv 353 wondibot = #wondible :wondibot\r\n:wondibot.tmi.twitch.tv 366 wondibot #wondible :End of /NAMES list\r\n"
 
 sampleChatMessage = ":wondible!wondible@wondible.tmi.twitch.tv PRIVMSG #wondible :test\r\n"
+
+sampleTaggedChatMessage = "@badges=broadcaster/1;color=#1E90FF;display-name=wondible;emotes=;flags=;id=036fe963-8707-44a1-8fb2-e1412343825d;mod=0;room-id=56623426;subscriber=0;tmi-sent-ts=1546013301508;turbo=0;user-id=56623426;user-type= :wondible!wondible@wondible.tmi.twitch.tv PRIVMSG #wondible :test\r\n"
 
 deadEndsToString : List (DeadEnd Context Problem) -> String
 deadEndsToString deadEnds =
