@@ -64,11 +64,11 @@ suite =
                     , Chat.Emotes ""
                     , Chat.Flags ""
                     , Chat.MessageId "036fe963-8707-44a1-8fb2-e1412343825d"
-                    , Chat.Mod "0"
+                    , Chat.Mod False
                     , Chat.RoomId "56623426"
-                    , Chat.Subscriber "0"
+                    , Chat.Subscriber False
                     , Chat.TmiSentTs "1546013301508"
-                    , Chat.Turbo "0"
+                    , Chat.Turbo False
                     , Chat.UserId "56623426"
                     , Chat.UserType ""
                     ]

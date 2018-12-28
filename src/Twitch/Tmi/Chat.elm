@@ -34,11 +34,11 @@ type Tag
   | Emotes String
   | Flags String
   | MessageId String
-  | Mod String
+  | Mod Bool
   | RoomId String
-  | Subscriber String
+  | Subscriber Bool
   | TmiSentTs String
-  | Turbo String
+  | Turbo Bool
   | UserId String
   | UserType String
   | UnknownTag String String
@@ -111,19 +111,19 @@ tag =
         |= tagValue
       , succeed Mod
         |. tagName "mod"
-        |= tagValue
+        |= tagBool
       , succeed RoomId
         |. tagName "room-id"
         |= tagValue
       , succeed Subscriber
         |. tagName "subscriber"
-        |= tagValue
+        |= tagBool
       , succeed TmiSentTs
         |. tagName "tmi-sent-ts"
         |= tagValue
       , succeed Turbo
         |. tagName "turbo"
-        |= tagValue
+        |= tagBool
       , succeed UserId
         |. tagName "user-id"
         |= tagValue
@@ -159,6 +159,16 @@ tagValue =
       succeed ()
         |. chompWhile (\c -> c /= ';' && c /= ' ')
     )
+
+tagBool : MessageParser Bool
+tagBool =
+  inContext "parsing tag bool" <|
+    oneOf
+      [ succeed False
+        |. token (Token "0" "Looking for 0")
+      , succeed True
+        |. token (Token "1" "Looking for 1")
+      ]
 
 optionalPrefix : MessageParser (Maybe String)
 optionalPrefix =
