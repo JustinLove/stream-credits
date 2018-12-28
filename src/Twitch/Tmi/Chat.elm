@@ -29,7 +29,7 @@ type alias Line =
   , params : List String
   }
 type Tag
-  = Badges String
+  = Badges (List String)
   | Color String
   | DisplayName String
   | Emotes String
@@ -94,7 +94,7 @@ tag =
     oneOf
       [ succeed Badges
         |. tagName "badges"
-        |= tagValue
+        |= tagBadgeList
       , succeed Color
         |. tagName "color"
         |= tagValue
@@ -176,6 +176,29 @@ tagTimestamp =
   inContext "parsing tag timestamp" <|
     map Time.millisToPosix <|
     int "Expecting timestamp" "Invalid number"
+
+tagBadgeList : MessageParser (List String)
+tagBadgeList =
+  inContext "parsing badge list" <|
+    oneOf
+      [ sequence
+        { start = (Token "" "Expecting start of list")
+        , separator = (Token "," "Expecting badges to be separated with ,")
+        , end = (Token "" "Expecting end of list")
+        , spaces = succeed ()
+        , item = badge
+        , trailing = Forbidden
+        }
+      , succeed []
+      ]
+
+badge : MessageParser String
+badge =
+  inContext "parsing badge value" <|
+    (getChompedString <|
+      succeed ()
+        |. chompWhile (\c -> c /= ',' && c /= ';' && c /= ' ')
+    )
 
 optionalPrefix : MessageParser (Maybe String)
 optionalPrefix =

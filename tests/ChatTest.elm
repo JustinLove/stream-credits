@@ -59,7 +59,7 @@ suite =
             Chat.sampleTaggedChatMessage
                 |> Parser.run Chat.line
                 |> Expect.equal (Ok (Chat.Line
-                  ( [ Chat.Badges "broadcaster/1"
+                  ( [ Chat.Badges ["broadcaster/1"]
                     , Chat.Color "#1E90FF"
                     , Chat.DisplayName "wondible"
                     , Chat.Emotes ""
