@@ -96,7 +96,7 @@ init flags location key =
     , Dom.getViewport
       |> Task.map (\viewport -> (round viewport.viewport.width, round viewport.viewport.height))
       |> Task.perform WindowSize
-    , if mauth /= Nothing then PortSocket.connect "wss://irc-ws.chat.twitch.tv:443" else Cmd.none
+    , PortSocket.connect "wss://irc-ws.chat.twitch.tv:443"
     ]
   )
 
@@ -214,28 +214,51 @@ update msg model =
       Maybe.map2 (\auth login -> 
         (model, Cmd.batch
           -- order is reversed, because elm feels like it
-          [ model.login
-            |> Maybe.map (\channel -> PortSocket.send id ("JOIN #" ++ channel))
-            |> Maybe.withDefault Cmd.none
-          , PortSocket.send id ("NICK " ++ login)
+          [ PortSocket.send id ("NICK " ++ login)
           , PortSocket.send id ("PASS oauth:" ++ auth)
           ])
         )
         model.auth
         model.authLogin
-      |> Maybe.withDefault (model, Cmd.none)
+      |> Maybe.withDefault
+        (model, PortSocket.send id ("NICK justinfan1234"))
     WebSocketTest id PortSocket.Close ->
       let _ = Debug.log "websocket closed" id in
       (model, Cmd.none)
     WebSocketTest id (PortSocket.Message message) ->
       let _ = Debug.log "websocket message" message in
-      case message of
-        "PING :tmi.twitch.tv\r\n" -> 
-          let _ = Debug.log "PONG" "" in
-          (model, PortSocket.send id ("PONG :tmi.twitch.tv"))
-        _ ->
-          let _ = Debug.log "parse" (Parser.run Chat.message message) in
-          (model, Cmd.none)
+      (Parser.run Chat.message message)
+        |> Result.map (List.foldl (reduce (chatResponse id)) (model, Cmd.none))
+        |> Result.mapError (Debug.log "message parse failed")
+        |> Result.withDefault (model, Cmd.none)
+
+chatResponse : PortSocket.Id -> Chat.Line -> Model -> (Model, Cmd Msg)
+chatResponse id line model =
+  case line.command of
+    "PING" -> 
+      let _ = Debug.log "PONG" "" in
+      (model, PortSocket.send id ("PONG :tmi.twitch.tv"))
+    "376" -> 
+      --let _ = Debug.log "logged in" "" in
+      ( model
+      , Cmd.batch
+        -- order is reversed, because elm feels like it
+        --[ PortSocket.send id "CAP REQ :twitch.tv/tags"
+        [ model.login
+          |> Maybe.map (\channel -> PortSocket.send id ("JOIN #" ++ channel))
+          |> Maybe.withDefault Cmd.none
+        ]
+      )
+    _ ->
+      let _ = Debug.log "parse" line in
+      (model, Cmd.none)
+
+reduce : (msg -> Model -> (Model, Cmd Msg)) -> msg -> (Model, Cmd Msg) -> (Model, Cmd Msg)
+reduce step msg (model, cmd) =
+  let
+    (m2, c2) = step msg model
+  in
+    (m2, Cmd.batch [cmd, c2])
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
