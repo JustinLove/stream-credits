@@ -21,7 +21,7 @@ import Set
 
 type alias MessageParser a = Parser Context Problem a
 type alias Line =
-  { tags : List String
+  { tags : List (String, String)
   , prefix : Maybe String
   , command : String
   , params : List String
@@ -56,7 +56,7 @@ line =
       |= params
       |. symbol (Token "\r\n" "Looking for end of line")
 
-optionalTags : MessageParser (List String)
+optionalTags : MessageParser (List (String, String))
 optionalTags =
   inContext "parsing tags" <|
     oneOf
@@ -71,9 +71,25 @@ optionalTags =
       , succeed []
       ]
 
-tag : MessageParser String
+tag : MessageParser (String, String)
 tag =
   inContext "parsing tag" <|
+    succeed Tuple.pair
+      |= tagName
+      |. symbol (Token "=" "Expecting = seperator")
+      |= tagValue
+
+tagName : MessageParser String
+tagName =
+  inContext "parsing tagName" <|
+    (getChompedString <|
+      succeed ()
+        |. chompWhile (\c -> c /= '=' && c /= ';' && c /= ' ')
+    )
+
+tagValue : MessageParser String
+tagValue =
+  inContext "parsing tag value" <|
     (getChompedString <|
       succeed ()
         |. chompWhile (\c -> c /= ';' && c /= ' ')

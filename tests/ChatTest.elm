@@ -58,19 +58,19 @@ suite =
             Chat.sampleTaggedChatMessage
                 |> Parser.run Chat.line
                 |> Expect.equal (Ok (Chat.Line
-                  ( [ "badges=broadcaster/1"
-                    , "color=#1E90FF"
-                    , "display-name=wondible"
-                    , "emotes="
-                    , "flags="
-                    , "id=036fe963-8707-44a1-8fb2-e1412343825d"
-                    , "mod=0"
-                    , "room-id=56623426"
-                    , "subscriber=0"
-                    , "tmi-sent-ts=1546013301508"
-                    , "turbo=0"
-                    , "user-id=56623426"
-                    , "user-type="
+                  ( [ ("badges","broadcaster/1")
+                    , ("color","#1E90FF")
+                    , ("display-name","wondible")
+                    , ("emotes","")
+                    , ("flags","")
+                    , ("id","036fe963-8707-44a1-8fb2-e1412343825d")
+                    , ("mod","0")
+                    , ("room-id","56623426")
+                    , ("subscriber","0")
+                    , ("tmi-sent-ts","1546013301508")
+                    , ("turbo","0")
+                    , ("user-id","56623426")
+                    , ("user-type","")
                     ]
                   )
                   (Just "wondible!wondible@wondible.tmi.twitch.tv")
