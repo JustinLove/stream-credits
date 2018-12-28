@@ -3,6 +3,7 @@ module Twitch.Tmi.Chat exposing
   , message
   , Line
   , line
+  , Tag(..)
   , prefix
   , command
   , params
@@ -21,11 +22,26 @@ import Set
 
 type alias MessageParser a = Parser Context Problem a
 type alias Line =
-  { tags : List (String, String)
+  { tags : List Tag
   , prefix : Maybe String
   , command : String
   , params : List String
   }
+type Tag
+  = Badges String
+  | Color String
+  | DisplayName String
+  | Emotes String
+  | Flags String
+  | MessageId String
+  | Mod String
+  | RoomId String
+  | Subscriber String
+  | TmiSentTs String
+  | Turbo String
+  | UserId String
+  | UserType String
+  | UnknownTag String String
 type alias Message = List Line
 type alias Context = String
 type alias Problem = String
@@ -56,7 +72,7 @@ line =
       |= params
       |. symbol (Token "\r\n" "Looking for end of line")
 
-optionalTags : MessageParser (List (String, String))
+optionalTags : MessageParser (List Tag)
 optionalTags =
   inContext "parsing tags" <|
     oneOf
@@ -71,50 +87,50 @@ optionalTags =
       , succeed []
       ]
 
-tag : MessageParser (String, String)
+tag : MessageParser Tag
 tag =
   inContext "parsing tag" <|
     oneOf
-      [ succeed (Tuple.pair "badges")
+      [ succeed Badges
         |. tagName "badges"
         |= tagValue
-      , succeed (Tuple.pair "color")
+      , succeed Color
         |. tagName "color"
         |= tagValue
-      , succeed (Tuple.pair "display-name")
+      , succeed DisplayName
         |. tagName "display-name"
         |= tagValue
-      , succeed (Tuple.pair "emotes")
+      , succeed Emotes
         |. tagName "emotes"
         |= tagValue
-      , succeed (Tuple.pair "flags")
+      , succeed Flags
         |. tagName "flags"
         |= tagValue
-      , succeed (Tuple.pair "id")
+      , succeed MessageId
         |. tagName "id"
         |= tagValue
-      , succeed (Tuple.pair "mod")
+      , succeed Mod
         |. tagName "mod"
         |= tagValue
-      , succeed (Tuple.pair "room-id")
+      , succeed RoomId
         |. tagName "room-id"
         |= tagValue
-      , succeed (Tuple.pair "subscriber")
+      , succeed Subscriber
         |. tagName "subscriber"
         |= tagValue
-      , succeed (Tuple.pair "tmi-sent-ts")
+      , succeed TmiSentTs
         |. tagName "tmi-sent-ts"
         |= tagValue
-      , succeed (Tuple.pair "turbo")
+      , succeed Turbo
         |. tagName "turbo"
         |= tagValue
-      , succeed (Tuple.pair "user-id")
+      , succeed UserId
         |. tagName "user-id"
         |= tagValue
-      , succeed (Tuple.pair "user-type")
+      , succeed UserType
         |. tagName "user-type"
         |= tagValue
-      , succeed Tuple.pair
+      , succeed UnknownTag
         |= unknownTag
         |. equals
         |= tagValue
