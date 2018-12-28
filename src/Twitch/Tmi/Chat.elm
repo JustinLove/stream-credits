@@ -19,6 +19,7 @@ module Twitch.Tmi.Chat exposing
 import Char
 import Parser.Advanced exposing (..)
 import Set
+import Time
 
 type alias MessageParser a = Parser Context Problem a
 type alias Line =
@@ -37,7 +38,7 @@ type Tag
   | Mod Bool
   | RoomId String
   | Subscriber Bool
-  | TmiSentTs String
+  | TmiSentTs Time.Posix
   | Turbo Bool
   | UserId String
   | UserType String
@@ -120,7 +121,7 @@ tag =
         |= tagBool
       , succeed TmiSentTs
         |. tagName "tmi-sent-ts"
-        |= tagValue
+        |= tagTimestamp
       , succeed Turbo
         |. tagName "turbo"
         |= tagBool
@@ -169,6 +170,12 @@ tagBool =
       , succeed True
         |. token (Token "1" "Looking for 1")
       ]
+
+tagTimestamp : MessageParser Time.Posix
+tagTimestamp =
+  inContext "parsing tag timestamp" <|
+    map Time.millisToPosix <|
+    int "Expecting timestamp" "Invalid number"
 
 optionalPrefix : MessageParser (Maybe String)
 optionalPrefix =

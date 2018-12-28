@@ -3,6 +3,7 @@ module ChatTest exposing (..)
 import Twitch.Tmi.Chat as Chat
 
 import Parser.Advanced as Parser
+import Time
 
 import Expect exposing (Expectation)
 --import Fuzz exposing (Fuzzer, int, list, string)
@@ -67,7 +68,7 @@ suite =
                     , Chat.Mod False
                     , Chat.RoomId "56623426"
                     , Chat.Subscriber False
-                    , Chat.TmiSentTs "1546013301508"
+                    , Chat.TmiSentTs (Time.millisToPosix 1546013301508)
                     , Chat.Turbo False
                     , Chat.UserId "56623426"
                     , Chat.UserType ""
