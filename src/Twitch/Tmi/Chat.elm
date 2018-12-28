@@ -74,18 +74,67 @@ optionalTags =
 tag : MessageParser (String, String)
 tag =
   inContext "parsing tag" <|
-    succeed Tuple.pair
-      |= tagName
-      |. symbol (Token "=" "Expecting = seperator")
-      |= tagValue
+    oneOf
+      [ succeed (Tuple.pair "badges")
+        |. tagName "badges"
+        |= tagValue
+      , succeed (Tuple.pair "color")
+        |. tagName "color"
+        |= tagValue
+      , succeed (Tuple.pair "display-name")
+        |. tagName "display-name"
+        |= tagValue
+      , succeed (Tuple.pair "emotes")
+        |. tagName "emotes"
+        |= tagValue
+      , succeed (Tuple.pair "flags")
+        |. tagName "flags"
+        |= tagValue
+      , succeed (Tuple.pair "id")
+        |. tagName "id"
+        |= tagValue
+      , succeed (Tuple.pair "mod")
+        |. tagName "mod"
+        |= tagValue
+      , succeed (Tuple.pair "room-id")
+        |. tagName "room-id"
+        |= tagValue
+      , succeed (Tuple.pair "subscriber")
+        |. tagName "subscriber"
+        |= tagValue
+      , succeed (Tuple.pair "tmi-sent-ts")
+        |. tagName "tmi-sent-ts"
+        |= tagValue
+      , succeed (Tuple.pair "turbo")
+        |. tagName "turbo"
+        |= tagValue
+      , succeed (Tuple.pair "user-id")
+        |. tagName "user-id"
+        |= tagValue
+      , succeed (Tuple.pair "user-type")
+        |. tagName "user-type"
+        |= tagValue
+      , succeed Tuple.pair
+        |= unknownTag
+        |. equals
+        |= tagValue
+      ]
 
-tagName : MessageParser String
-tagName =
-  inContext "parsing tagName" <|
+tagName : String -> MessageParser ()
+tagName name =
+  keyword (Token name ("Looking for a tag " ++ name)) |. equals
+
+unknownTag : MessageParser String
+unknownTag =
+  inContext "parsing unknown tag" <|
     (getChompedString <|
       succeed ()
         |. chompWhile (\c -> c /= '=' && c /= ';' && c /= ' ')
     )
+
+equals : MessageParser ()
+equals =
+  symbol (Token "=" "Expecting = seperator")
 
 tagValue : MessageParser String
 tagValue =
