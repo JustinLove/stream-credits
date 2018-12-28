@@ -238,6 +238,12 @@ chatResponse id line model =
     "PING" -> 
       let _ = Debug.log "PONG" "" in
       (model, PortSocket.send id ("PONG :tmi.twitch.tv"))
+    "001" -> (model, Cmd.none)
+    "002" -> (model, Cmd.none)
+    "003" -> (model, Cmd.none)
+    "004" -> (model, Cmd.none)
+    "375" -> (model, Cmd.none)
+    "372" -> (model, Cmd.none)
     "376" -> 
       --let _ = Debug.log "logged in" "" in
       ( model
