@@ -231,19 +231,7 @@ tagTimestamp =
 tagBadgeList : MessageParser (List String)
 tagBadgeList =
   inContext "parsing badge list" <|
-    loop [] tagBadgeListStep
-
-tagBadgeListStep : List String -> MessageParser (Step (List String) (List String))
-tagBadgeListStep reverseBadges =
-  oneOf
-    [ succeed (\m -> Loop (m :: reverseBadges))
-      |. symbol (Token "," "Expecting badge seperator")
-      |= badge
-    , succeed (\m -> Loop (m :: reverseBadges))
-      |= badge
-    , succeed ()
-      |> map (\_ -> Done (List.reverse reverseBadges))
-    ]
+    unbracketedList badge ","
 
 badge : MessageParser String
 badge =
@@ -262,19 +250,7 @@ badgeCharacter c =
 tagEmoteList : MessageParser (List Emote)
 tagEmoteList =
   inContext "parsing emote list" <|
-    loop [] tagEmoteListStep
-
-tagEmoteListStep : List Emote -> MessageParser (Step (List Emote) (List Emote))
-tagEmoteListStep reverseEmotes =
-  oneOf
-    [ succeed (\m -> Loop (m :: reverseEmotes))
-      |. symbol (Token "/" "Expecting emote seperator")
-      |= emote
-    , succeed (\m -> Loop (m :: reverseEmotes))
-      |= emote
-    , succeed ()
-      |> map (\_ -> Done (List.reverse reverseEmotes))
-    ]
+    unbracketedList emote "/"
 
 emote : MessageParser Emote
 emote =
@@ -296,19 +272,7 @@ numericId =
 characterRangeList : MessageParser (List CharacterRange)
 characterRangeList =
   inContext "parsing character range list" <|
-    loop [] characterRangeListStep
-
-characterRangeListStep : List CharacterRange -> MessageParser (Step (List CharacterRange) (List CharacterRange))
-characterRangeListStep reverseRanges =
-  oneOf
-    [ succeed (\m -> Loop (m :: reverseRanges))
-      |. symbol (Token "," "Expecting range seperator")
-      |= characterRange
-    , succeed (\m -> Loop (m :: reverseRanges))
-      |= characterRange
-    , succeed ()
-      |> map (\_ -> Done (List.reverse reverseRanges))
-    ]
+    unbracketedList characterRange ","
 
 characterRange : MessageParser (Int,Int)
 characterRange =
@@ -423,6 +387,23 @@ paramStep reverseParams =
 middle : Char -> Bool
 middle c =
   c /= ' ' && c /= '\r' && c /= '\n'
+
+unbracketedList : MessageParser a -> String -> MessageParser (List a)
+unbracketedList itemParser separator =
+  inContext "parsing unbrackted list" <|
+    loop [] (unbracketedListStep itemParser separator)
+
+unbracketedListStep : MessageParser a -> String -> List a -> MessageParser (Step (List a) (List a))
+unbracketedListStep itemParser separator reverseItems =
+  oneOf
+    [ succeed (\m -> Loop (m :: reverseItems))
+      |. symbol (Token separator "Expecting list seperator")
+      |= itemParser
+    , succeed (\m -> Loop (m :: reverseItems))
+      |= itemParser
+    , succeed ()
+      |> map (\_ -> Done (List.reverse reverseItems))
+    ]
 
 deadEndsToString : List (DeadEnd Context Problem) -> String
 deadEndsToString deadEnds =
