@@ -78,6 +78,30 @@ suite =
                   "PRIVMSG"
                   ["#wondible", "test"])
                 )
+      , test "emote chat line" <|
+          \_ ->
+            Chat.sampleEmoteChatMessage
+                |> Parser.run Chat.line
+                |> Expect.equal (Ok (Chat.Line
+                  ( [ Chat.Badges []
+                    , Chat.Color "#1E90FF"
+                    , Chat.DisplayName "Stay_Hydrated_Bot"
+                    , Chat.Emotes "869375:0-11/1:94-95"
+                    , Chat.Flags ""
+                    , Chat.MessageId "15992f17-5504-4879-80df-2c81b55b3422"
+                    , Chat.Mod False
+                    , Chat.RoomId "56623426"
+                    , Chat.Subscriber False
+                    , Chat.TmiSentTs (Time.millisToPosix 1546015898754)
+                    , Chat.Turbo False
+                    , Chat.UserId "183484964"
+                    , Chat.UserType ""
+                    ]
+                  )
+                  (Just "stay_hydrated_bot!stay_hydrated_bot@stay_hydrated_bot.tmi.twitch.tv")
+                  "PRIVMSG"
+                  ["#wondible", "stayhyBottle [reminder] Live for 2 hours. Total water consumed should be at least 8oz (240mL) :)"])
+                )
       ]
     , describe "prefix"
       [ test "domain name" <|

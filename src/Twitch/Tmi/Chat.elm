@@ -13,6 +13,7 @@ module Twitch.Tmi.Chat exposing
   , sampleNamesMessage
   , sampleChatMessage
   , sampleTaggedChatMessage
+  , sampleEmoteChatMessage
   , deadEndsToString
   )
 
@@ -180,25 +181,34 @@ tagTimestamp =
 tagBadgeList : MessageParser (List String)
 tagBadgeList =
   inContext "parsing badge list" <|
-    oneOf
-      [ sequence
-        { start = (Token "" "Expecting start of list")
-        , separator = (Token "," "Expecting badges to be separated with ,")
-        , end = (Token "" "Expecting end of list")
-        , spaces = succeed ()
-        , item = badge
-        , trailing = Forbidden
-        }
-      , succeed []
-      ]
+    loop [] tagBadgeListStep
+
+tagBadgeListStep : List String -> MessageParser (Step (List String) (List String))
+tagBadgeListStep reverseBadges =
+  oneOf
+    [ succeed (\m -> Loop (m :: reverseBadges))
+      |. symbol (Token "," "Expecting badge seperator")
+      |= badge
+    , succeed (\m -> Loop (m :: reverseBadges))
+      |= badge
+    , succeed ()
+      |> map (\_ -> Done (List.reverse reverseBadges))
+    ]
+
 
 badge : MessageParser String
 badge =
   inContext "parsing badge value" <|
-    (getChompedString <|
-      succeed ()
-        |. chompWhile (\c -> c /= ',' && c /= ';' && c /= ' ')
-    )
+    variable
+      { start = badgeCharacter
+      , inner = badgeCharacter
+      , reserved = Set.empty
+      , expecting = "did not look like badge"
+      }
+
+badgeCharacter : Char -> Bool
+badgeCharacter c =
+  c /= ',' && c /= ';' && c /= ' '
 
 optionalPrefix : MessageParser (Maybe String)
 optionalPrefix =
@@ -224,28 +234,30 @@ fullyQualifiedUser =
   inContext "fully qualified user" <|
     getChompedString <|
       succeed ()
-        |. variable
-          { start = Char.isAlphaNum
-          , inner = \c -> Char.isAlphaNum c
-          , reserved = Set.empty
-          , expecting = "did not look like a nick"
-          }
+        |. nick
         |. symbol (Token "!" "looking for !")
-        |. variable
-          { start = Char.isAlphaNum
-          , inner = \c -> Char.isAlphaNum c
-          , reserved = Set.empty
-          , expecting = "did not look like a user name"
-          }
+        |. user
         |. symbol (Token "@" "looking for @")
         |. host
+
+nick : MessageParser String
+nick =
+  variable
+    { start = Char.isAlphaNum
+    , inner = \c -> Char.isAlphaNum c || c == '_'
+    , reserved = Set.empty
+    , expecting = "did not look like a user name or nick"
+    }
+
+user : MessageParser String
+user = nick
 
 host : MessageParser String
 host =
   inContext "parsing a host" <|
     variable
       { start = Char.isAlphaNum
-      , inner = \c -> Char.isAlphaNum c || c == '.'
+      , inner = \c -> Char.isAlphaNum c || c == '.' || c == '_'
       , reserved = Set.empty
       , expecting = "did not look like a domain name"
       }
@@ -315,6 +327,8 @@ sampleNamesMessage = ":wondibot.tmi.twitch.tv 353 wondibot = #wondible :wondibot
 sampleChatMessage = ":wondible!wondible@wondible.tmi.twitch.tv PRIVMSG #wondible :test\r\n"
 
 sampleTaggedChatMessage = "@badges=broadcaster/1;color=#1E90FF;display-name=wondible;emotes=;flags=;id=036fe963-8707-44a1-8fb2-e1412343825d;mod=0;room-id=56623426;subscriber=0;tmi-sent-ts=1546013301508;turbo=0;user-id=56623426;user-type= :wondible!wondible@wondible.tmi.twitch.tv PRIVMSG #wondible :test\r\n"
+
+sampleEmoteChatMessage = "@badges=;color=#1E90FF;display-name=Stay_Hydrated_Bot;emotes=869375:0-11/1:94-95;flags=;id=15992f17-5504-4879-80df-2c81b55b3422;mod=0;room-id=56623426;subscriber=0;tmi-sent-ts=1546015898754;turbo=0;user-id=183484964;user-type= :stay_hydrated_bot!stay_hydrated_bot@stay_hydrated_bot.tmi.twitch.tv PRIVMSG #wondible :stayhyBottle [reminder] Live for 2 hours. Total water consumed should be at least 8oz (240mL) :)\r\n"
 
 deadEndsToString : List (DeadEnd Context Problem) -> String
 deadEndsToString deadEnds =
