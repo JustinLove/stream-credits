@@ -198,13 +198,19 @@ tagEscapedStringStep reverseChunks =
     [ succeed (\m -> Loop (m :: reverseChunks))
       |. symbol (Token "\\" "Expecting backslash")
       |= map (always " ") (token (Token "s" "looking for escaped space"))
-
-    , chompWhile (\c -> c /= '\\' && c /= ';' && c /= ' ')
-        |> getChompedString
-        |> map (\m -> Loop (m :: reverseChunks))
+    , succeed (\m -> Loop (m :: reverseChunks))
+        |= (getChompedString <|
+            succeed ()
+              |. chompIf unescapedCharacter "looking for unescaped characters"
+              |. chompWhile unescapedCharacter
+            )
     , succeed ()
       |> map (\_ -> Done (String.join "" (List.reverse reverseChunks)))
     ]
+
+unescapedCharacter : Char -> Bool
+unescapedCharacter c =
+  c /= '\\' && c /= ';' && c /= ' '
 
 tagBool : MessageParser Bool
 tagBool =
