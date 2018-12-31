@@ -4,6 +4,8 @@ module Twitch.Tmi.Chat exposing
   , Line
   , line
   , Tag(..)
+  , Emote(..)
+  , CharacterRange
   , prefix
   , command
   , params
@@ -14,6 +16,7 @@ module Twitch.Tmi.Chat exposing
   , sampleChatMessage
   , sampleTaggedChatMessage
   , sampleEmoteChatMessage
+  , sampleEmoteRepeatedChatMessage
   , deadEndsToString
   )
 
@@ -33,7 +36,7 @@ type Tag
   = Badges (List String)
   | Color String
   | DisplayName String
-  | Emotes String
+  | Emotes (List Emote)
   | Flags String
   | MessageId String
   | Mod Bool
@@ -44,6 +47,8 @@ type Tag
   | UserId String
   | UserType String
   | UnknownTag String String
+type Emote = Emote String (List CharacterRange)
+type alias CharacterRange = (Int,Int)
 type alias Message = List Line
 type alias Context = String
 type alias Problem = String
@@ -104,7 +109,7 @@ tag =
         |= tagValue
       , succeed Emotes
         |. tagName "emotes"
-        |= tagValue
+        |= tagEmoteList
       , succeed Flags
         |. tagName "flags"
         |= tagValue
@@ -195,7 +200,6 @@ tagBadgeListStep reverseBadges =
       |> map (\_ -> Done (List.reverse reverseBadges))
     ]
 
-
 badge : MessageParser String
 badge =
   inContext "parsing badge value" <|
@@ -209,6 +213,65 @@ badge =
 badgeCharacter : Char -> Bool
 badgeCharacter c =
   c /= ',' && c /= ';' && c /= ' '
+
+tagEmoteList : MessageParser (List Emote)
+tagEmoteList =
+  inContext "parsing emote list" <|
+    loop [] tagEmoteListStep
+
+tagEmoteListStep : List Emote -> MessageParser (Step (List Emote) (List Emote))
+tagEmoteListStep reverseEmotes =
+  oneOf
+    [ succeed (\m -> Loop (m :: reverseEmotes))
+      |. symbol (Token "/" "Expecting emote seperator")
+      |= emote
+    , succeed (\m -> Loop (m :: reverseEmotes))
+      |= emote
+    , succeed ()
+      |> map (\_ -> Done (List.reverse reverseEmotes))
+    ]
+
+emote : MessageParser Emote
+emote =
+  inContext "parsing emote" <|
+    succeed Emote
+      |= numericId
+      |. symbol (Token ":" "expecting a : between emote id and locatoins")
+      |= characterRangeList
+
+numericId : MessageParser String
+numericId =
+  variable
+    { start = Char.isDigit
+    , inner = Char.isDigit
+    , reserved = Set.empty
+    , expecting = "did not look like a numeric id"
+    }
+
+characterRangeList : MessageParser (List CharacterRange)
+characterRangeList =
+  inContext "parsing character range list" <|
+    loop [] characterRangeListStep
+
+characterRangeListStep : List CharacterRange -> MessageParser (Step (List CharacterRange) (List CharacterRange))
+characterRangeListStep reverseRanges =
+  oneOf
+    [ succeed (\m -> Loop (m :: reverseRanges))
+      |. symbol (Token "," "Expecting range seperator")
+      |= characterRange
+    , succeed (\m -> Loop (m :: reverseRanges))
+      |= characterRange
+    , succeed ()
+      |> map (\_ -> Done (List.reverse reverseRanges))
+    ]
+
+characterRange : MessageParser (Int,Int)
+characterRange =
+  inContext "character range" <|
+    succeed Tuple.pair
+      |= int "Expecting Int" "Invalid Number"
+      |. symbol (Token "-" "expecting - between character start and end")
+      |= int "Expecting Int" "Invalid Number"
 
 optionalPrefix : MessageParser (Maybe String)
 optionalPrefix =
@@ -329,6 +392,8 @@ sampleChatMessage = ":wondible!wondible@wondible.tmi.twitch.tv PRIVMSG #wondible
 sampleTaggedChatMessage = "@badges=broadcaster/1;color=#1E90FF;display-name=wondible;emotes=;flags=;id=036fe963-8707-44a1-8fb2-e1412343825d;mod=0;room-id=56623426;subscriber=0;tmi-sent-ts=1546013301508;turbo=0;user-id=56623426;user-type= :wondible!wondible@wondible.tmi.twitch.tv PRIVMSG #wondible :test\r\n"
 
 sampleEmoteChatMessage = "@badges=;color=#1E90FF;display-name=Stay_Hydrated_Bot;emotes=869375:0-11/1:94-95;flags=;id=15992f17-5504-4879-80df-2c81b55b3422;mod=0;room-id=56623426;subscriber=0;tmi-sent-ts=1546015898754;turbo=0;user-id=183484964;user-type= :stay_hydrated_bot!stay_hydrated_bot@stay_hydrated_bot.tmi.twitch.tv PRIVMSG #wondible :stayhyBottle [reminder] Live for 2 hours. Total water consumed should be at least 8oz (240mL) :)\r\n"
+
+sampleEmoteRepeatedChatMessage = "@badges=global_mod/1,turbo/1;color=#0D4200;display-name=dallas;emotes=25:0-4,12-16/1902:6-10;id=b34ccfc7-4977-403a-8a94-33c6bac34fb8;mod=0;room-id=1337;subscriber=0;tmi-sent-ts=1507246572675;turbo=1;user-id=1337;user-type=global_mod :ronni!ronni@ronni.tmi.twitch.tv PRIVMSG #dallas :Kappa Keepo Kappa\r\n"
 
 deadEndsToString : List (DeadEnd Context Problem) -> String
 deadEndsToString deadEnds =
