@@ -110,6 +110,17 @@ suite =
                       , Chat.Emote "1902" [(6,10)]
                       ])
                     )
+      , test "multiple badges chat line" <|
+          \_ ->
+            case Parser.run Chat.line Chat.sampleEmoteRepeatedChatMessage of
+              Err err ->
+                Expect.fail (Chat.deadEndsToString err)
+              Ok line ->
+                line
+                  |> .tags
+                  |> List.head
+                  |> Expect.equal
+                    (Just (Chat.Badges ["global_mod/1", "turbo/1"]))
       ]
     , describe "prefix"
       [ test "domain name" <|
