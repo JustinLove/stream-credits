@@ -251,6 +251,7 @@ chatResponse id line model =
       ( model
       , Cmd.batch
         [ PortSocket.send id "CAP REQ :twitch.tv/tags"
+        , PortSocket.send id "CAP REQ :twitch.tv/commands"
         , model.login
           |> Maybe.map (\channel -> PortSocket.send id ("JOIN #" ++ channel))
           |> Maybe.withDefault Cmd.none

@@ -1,6 +1,7 @@
 module ChatTest exposing (..)
 
 import Twitch.Tmi.Chat as Chat
+import Twitch.Tmi.ChatSamples as Chat
 
 import Parser.Advanced as Parser
 import Time
