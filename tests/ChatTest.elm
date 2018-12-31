@@ -134,6 +134,34 @@ suite =
                   |> List.head
                   |> Expect.equal
                     (Just (Chat.Bits 100))
+      , test "resub line" <|
+          \_ ->
+            case Parser.run Chat.line Chat.sampleResubMessage of
+              Err err ->
+                Expect.fail (Chat.deadEndsToString err)
+              Ok line ->
+                line
+                  |> .tags
+                  |> Expect.equal
+                    [ Chat.Badges ["staff/1","broadcaster/1","turbo/1"]
+                    , Chat.Color "#008000"
+                    , Chat.DisplayName "ronni"
+                    , Chat.Emotes []
+                    , Chat.MessageId "db25007f-7a18-43eb-9379-80131e44d633"
+                    , Chat.Login "ronni"
+                    , Chat.Mod False
+                    , Chat.MsgId "resub"
+                    , Chat.MsgParamMonths 6
+                    , Chat.MsgParamSubPlan "Prime"
+                    , Chat.MsgParamSubPlanName "Prime"
+                    , Chat.RoomId "1337"
+                    , Chat.Subscriber True
+                    , Chat.SystemMsg "ronni has subscribed for 6 months!"
+                    , Chat.TmiSentTs (Time.millisToPosix 1507246572675)
+                    , Chat.Turbo True
+                    , Chat.UserId "1337"
+                    , Chat.UserType "staff"
+                    ]
       ]
     , describe "prefix"
       [ test "domain name" <|

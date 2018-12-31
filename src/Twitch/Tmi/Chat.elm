@@ -31,10 +31,16 @@ type Tag
   | DisplayName String
   | Emotes (List Emote)
   | Flags String
+  | Login String
   | MessageId String
   | Mod Bool
+  | MsgId String
+  | MsgParamMonths Int
+  | MsgParamSubPlan String
+  | MsgParamSubPlanName String
   | RoomId String
   | Subscriber Bool
+  | SystemMsg String
   | TmiSentTs Time.Posix
   | Turbo Bool
   | UserId String
@@ -109,18 +115,36 @@ tag =
       , succeed Flags
         |. tagName "flags"
         |= tagValue
+      , succeed Login
+        |. tagName "login"
+        |= tagValue
       , succeed MessageId
         |. tagName "id"
         |= tagValue
       , succeed Mod
         |. tagName "mod"
         |= tagBool
+      , succeed MsgId
+        |. tagName "msg-id"
+        |= tagValue
+      , succeed MsgParamMonths
+        |. tagName "msg-param-months"
+        |= int "Expecting Int" "Invalid Int"
+      , succeed MsgParamSubPlanName -- backward because of substring
+        |. tagName "msg-param-sub-plan-name"
+        |= tagValue
+      , succeed MsgParamSubPlan
+        |. tagName "msg-param-sub-plan"
+        |= tagValue
       , succeed RoomId
         |. tagName "room-id"
         |= tagValue
       , succeed Subscriber
         |. tagName "subscriber"
         |= tagBool
+      , succeed SystemMsg
+        |. tagName "system-msg"
+        |= tagEscapedString
       , succeed TmiSentTs
         |. tagName "tmi-sent-ts"
         |= tagTimestamp
@@ -162,6 +186,25 @@ tagValue =
       succeed ()
         |. chompWhile (\c -> c /= ';' && c /= ' ')
     )
+
+tagEscapedString : MessageParser String
+tagEscapedString =
+  inContext "parsing escaped tag string" <|
+    loop [] tagEscapedStringStep
+
+tagEscapedStringStep : List String -> MessageParser (Step (List String) String)
+tagEscapedStringStep reverseChunks =
+  oneOf
+    [ succeed (\m -> Loop (m :: reverseChunks))
+      |. symbol (Token "\\" "Expecting backslash")
+      |= map (always " ") (token (Token "s" "looking for escaped space"))
+
+    , chompWhile (\c -> c /= '\\' && c /= ';' && c /= ' ')
+        |> getChompedString
+        |> map (\m -> Loop (m :: reverseChunks))
+    , succeed ()
+      |> map (\_ -> Done (String.join "" (List.reverse reverseChunks)))
+    ]
 
 tagBool : MessageParser Bool
 tagBool =
