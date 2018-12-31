@@ -17,6 +17,7 @@ module Twitch.Tmi.Chat exposing
   , sampleTaggedChatMessage
   , sampleEmoteChatMessage
   , sampleEmoteRepeatedChatMessage
+  , sampleBitsChatMessage
   , deadEndsToString
   )
 
@@ -34,6 +35,7 @@ type alias Line =
   }
 type Tag
   = Badges (List String)
+  | Bits Int
   | Color String
   | DisplayName String
   | Emotes (List Emote)
@@ -101,6 +103,9 @@ tag =
       [ succeed Badges
         |. tagName "badges"
         |= tagBadgeList
+      , succeed Bits
+        |. tagName "bits"
+        |= int "Expecting Int" "Invalid Int"
       , succeed Color
         |. tagName "color"
         |= tagValue
@@ -394,6 +399,8 @@ sampleTaggedChatMessage = "@badges=broadcaster/1;color=#1E90FF;display-name=wond
 sampleEmoteChatMessage = "@badges=;color=#1E90FF;display-name=Stay_Hydrated_Bot;emotes=869375:0-11/1:94-95;flags=;id=15992f17-5504-4879-80df-2c81b55b3422;mod=0;room-id=56623426;subscriber=0;tmi-sent-ts=1546015898754;turbo=0;user-id=183484964;user-type= :stay_hydrated_bot!stay_hydrated_bot@stay_hydrated_bot.tmi.twitch.tv PRIVMSG #wondible :stayhyBottle [reminder] Live for 2 hours. Total water consumed should be at least 8oz (240mL) :)\r\n"
 
 sampleEmoteRepeatedChatMessage = "@badges=global_mod/1,turbo/1;color=#0D4200;display-name=dallas;emotes=25:0-4,12-16/1902:6-10;id=b34ccfc7-4977-403a-8a94-33c6bac34fb8;mod=0;room-id=1337;subscriber=0;tmi-sent-ts=1507246572675;turbo=1;user-id=1337;user-type=global_mod :ronni!ronni@ronni.tmi.twitch.tv PRIVMSG #dallas :Kappa Keepo Kappa\r\n"
+
+sampleBitsChatMessage = "@badges=staff/1,bits/1000;bits=100;color=;display-name=dallas;emotes=;id=b34ccfc7-4977-403a-8a94-33c6bac34fb8;mod=0;room-id=1337;subscriber=0;tmi-sent-ts=1507246572675;turbo=1;user-id=1337;user-type=staff :ronni!ronni@ronni.tmi.twitch.tv PRIVMSG #dallas :cheer100\r\n"
 
 deadEndsToString : List (DeadEnd Context Problem) -> String
 deadEndsToString deadEnds =

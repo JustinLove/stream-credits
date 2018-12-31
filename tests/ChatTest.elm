@@ -121,6 +121,18 @@ suite =
                   |> List.head
                   |> Expect.equal
                     (Just (Chat.Badges ["global_mod/1", "turbo/1"]))
+      , test "bits chat line" <|
+          \_ ->
+            case Parser.run Chat.line Chat.sampleBitsChatMessage of
+              Err err ->
+                Expect.fail (Chat.deadEndsToString err)
+              Ok line ->
+                line
+                  |> .tags
+                  |> List.drop 1
+                  |> List.head
+                  |> Expect.equal
+                    (Just (Chat.Bits 100))
       ]
     , describe "prefix"
       [ test "domain name" <|
