@@ -28,6 +28,8 @@ sampleAnonGiftedSubMessage = "@badges=broadcaster/1,subscriber/6;color=;display-
 -- removed duplicate timestamp
 sampleRaidedMessage = "@badges=turbo/1;color=#9ACD32;display-name=TestChannel;emotes=;id=3d830f12-795c-447d-af3c-ea05e40fbddb;login=testchannel;mod=0;msg-id=raid;msg-param-displayName=TestChannel;msg-param-login=testchannel;msg-param-viewerCount=15;room-id=56379257;subscriber=0;system-msg=15\\sraiders\\sfrom\\sTestChannel\\shave\\sjoined\\n!;tmi-sent-ts=1507246572675;turbo=1;user-id=123456;user-type= :tmi.twitch.tv USERNOTICE #othertestchannel\r\n"
 
+sampleNewChatterMessage = "@badges=;color=;display-name=SevenTest1;emotes=30259:0-6;id=37feed0f-b9c7-4c3a-b475-21c6c6d21c3d;login=seventest1;mod=0;msg-id=ritual;msg-param-ritual-name=new_chatter;room-id=6316121;subscriber=0;system-msg=Seventoes\\sis\\snew\\shere!;tmi-sent-ts=1508363903826;turbo=0;user-id=131260580;user-type= :tmi.twitch.tv USERNOTICE #seventoes :HeyGuys\r\n"
+
 sampleHostNoticeMessage = "@msg-id=host_on :tmi.twitch.tv NOTICE #wondible :Now hosting ZermistTV.\r\n"
 
 sampleHostTargetMessage = ":tmi.twitch.tv HOSTTARGET #wondible :zermisttv 3\r\n"

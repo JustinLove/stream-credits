@@ -170,28 +170,16 @@ suite =
               Ok line ->
                 line
                   |> .tags
+                  |> removeUninterestingTags
                   |> Expect.equal
-                    [ Chat.Badges ["staff/1","premium/1"]
-                    , Chat.Color "#0000FF"
-                    , Chat.DisplayName "TWW2"
-                    , Chat.Emotes []
-                    , Chat.MessageId "e9176cd8-5e22-4684-ad40-ce53c2561c5e"
-                    , Chat.Login "tww2"
-                    , Chat.Mod False
-                    , Chat.MsgId "subgift"
+                    [ Chat.MsgId "subgift"
                     , Chat.MsgParamMonths 1
                     , Chat.MsgParamRecipientDisplayName "Mr_Woodchuck"
                     , Chat.MsgParamRecipientId "89614178"
                     , Chat.MsgParamRecipientUserName "mr_woodchuck"
                     , Chat.MsgParamSubPlanName "House of Nyoro~n"
                     , Chat.MsgParamSubPlan "1000"
-                    , Chat.RoomId "19571752"
-                    , Chat.Subscriber False
                     , Chat.SystemMsg "TWW2 gifted a Tier 1 sub to Mr_Woodchuck!"
-                    , Chat.TmiSentTs (Time.millisToPosix 1521159445153)
-                    , Chat.Turbo False
-                    , Chat.UserId "13405587"
-                    , Chat.UserType "staff"
                     ]
       , test "anonymous gifted sub line" <|
           \_ ->
@@ -201,15 +189,9 @@ suite =
               Ok line ->
                 line
                   |> .tags
+                  |> removeUninterestingTags
                   |> Expect.equal
-                    [ Chat.Badges ["broadcaster/1","subscriber/6"]
-                    , Chat.Color ""
-                    , Chat.DisplayName "qa_subs_partner"
-                    , Chat.Emotes []
-                    , Chat.Flags ""
-                    , Chat.MessageId "b1818e3c-0005-490f-ad0a-804957ddd760"
-                    , Chat.Login "qa_subs_partner"
-                    , Chat.Mod False
+                    [ Chat.Flags ""
                     , Chat.MsgId "anonsubgift"
                     , Chat.MsgParamMonths 3
                     , Chat.MsgParamRecipientDisplayName "TenureCalculator"
@@ -217,13 +199,7 @@ suite =
                     , Chat.MsgParamRecipientUserName "tenurecalculator"
                     , Chat.MsgParamSubPlanName "t111"
                     , Chat.MsgParamSubPlan "1000"
-                    , Chat.RoomId "196450059"
-                    , Chat.Subscriber True
                     , Chat.SystemMsg "An anonymous user gifted a Tier 1 sub to TenureCalculator! "
-                    , Chat.TmiSentTs (Time.millisToPosix 1542063432068)
-                    , Chat.Turbo False
-                    , Chat.UserId "196450059"
-                    , Chat.UserType ""
                     ]
       , test "channel raided line" <|
           \_ ->
@@ -233,25 +209,27 @@ suite =
               Ok line ->
                 line
                   |> .tags
+                  |> removeUninterestingTags
                   |> Expect.equal
-                    [ Chat.Badges ["turbo/1"]
-                    , Chat.Color "#9ACD32"
-                    , Chat.DisplayName "TestChannel"
-                    , Chat.Emotes []
-                    , Chat.MessageId "3d830f12-795c-447d-af3c-ea05e40fbddb"
-                    , Chat.Login "testchannel"
-                    , Chat.Mod False
-                    , Chat.MsgId "raid"
+                    [ Chat.MsgId "raid"
                     , Chat.MsgParamDisplayName "TestChannel"
                     , Chat.MsgParamLogin "testchannel"
                     , Chat.MsgParamViewerCount 15
-                    , Chat.RoomId "56379257"
-                    , Chat.Subscriber False
                     , Chat.SystemMsg "15 raiders from TestChannel have joined\n!"
-                    , Chat.TmiSentTs (Time.millisToPosix 1507246572675)
-                    , Chat.Turbo True
-                    , Chat.UserId "123456"
-                    , Chat.UserType ""
+                    ]
+      , test "new chatter ritual" <|
+          \_ ->
+            case Parser.run Chat.line Chat.sampleNewChatterMessage of
+              Err err ->
+                Expect.fail (Chat.deadEndsToString err)
+              Ok line ->
+                line
+                  |> .tags
+                  |> removeUninterestingTags
+                  |> Expect.equal
+                    [ Chat.MsgId "ritual"
+                    , Chat.MsgParamRitualName "new_chatter"
+                    , Chat.SystemMsg "Seventoes is new here!"
                     ]
       ]
     , describe "prefix"
@@ -297,6 +275,24 @@ suite =
       ]
     ]
 
+removeUninterestingTags : List Chat.Tag -> List Chat.Tag
+removeUninterestingTags =
+  List.filter (\tag -> case tag of
+    Chat.Badges _ -> False
+    Chat.Color _ -> False
+    Chat.DisplayName _ -> False
+    Chat.Emotes _ -> False
+    Chat.Login _ -> False
+    Chat.MessageId _ -> False
+    Chat.Mod _ -> False
+    Chat.RoomId _ -> False
+    Chat.Subscriber _ -> False
+    Chat.TmiSentTs _ -> False
+    Chat.Turbo _ -> False
+    Chat.UserId _ -> False
+    Chat.UserType _ -> False
+    _ -> True
+  )
 
 resultOk : (value -> Expectation) -> Result error value -> Expectation
 resultOk expect result =

@@ -41,6 +41,7 @@ type Tag
   | MsgParamRecipientDisplayName String
   | MsgParamRecipientId String
   | MsgParamRecipientUserName String
+  | MsgParamRitualName String
   | MsgParamSubPlan String
   | MsgParamSubPlanName String
   | MsgParamViewerCount Int
@@ -150,6 +151,9 @@ tag =
         |= tagValue
       , succeed MsgParamRecipientUserName
         |. tagName "msg-param-recipient-user-name"
+        |= tagValue
+      , succeed MsgParamRitualName
+        |. tagName "msg-param-ritual-name"
         |= tagValue
       , succeed MsgParamSubPlanName -- backward because of substring
         |. tagName "msg-param-sub-plan-name"
