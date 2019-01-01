@@ -26,6 +26,7 @@ type Msg
   = UI (View.Msg)
   | CurrentUrl Url
   | Navigate Browser.UrlRequest
+  | CurrentTime Time.Posix
   | WindowSize (Int, Int)
   | FrameStep Float
   | Hosts (Result Http.Error (List Tmi.Host))
@@ -38,6 +39,7 @@ type Msg
 type alias Model =
   { location : Url
   , navigationKey : Navigation.Key
+  , time : Time.Posix
   , windowWidth : Int
   , windowHeight : Int
   , timeElapsed : Float
@@ -70,6 +72,7 @@ init flags location key =
   in
   ( { location = location
     , navigationKey = key
+    , time = Time.millisToPosix 0
     , windowWidth = 480
     , windowHeight = 480
     , timeElapsed = 0
@@ -97,6 +100,7 @@ init flags location key =
         (Nothing, Nothing) -> Cmd.none
       )
     , fetchSelf mauth
+    , Time.now |> Task.perform CurrentTime
     , Dom.getViewport
       |> Task.map (\viewport -> (round viewport.viewport.width, round viewport.viewport.height))
       |> Task.perform WindowSize
@@ -114,6 +118,8 @@ update msg model =
       ( {model | location = url}
       , Navigation.pushUrl model.navigationKey (Url.toString url)
       )
+    CurrentTime time ->
+      ( {model | time = time}, Cmd.none)
     WindowSize (width, height) ->
       ( {model | windowWidth = width, windowHeight = height}, Cmd.none)
     FrameStep delta ->
@@ -225,7 +231,7 @@ update msg model =
         model.auth
         model.authLogin
       |> Maybe.withDefault
-        (model, PortSocket.send id ("NICK justinfan1234"))
+        (model, PortSocket.send id ("NICK justinfan" ++ (String.fromInt (modBy 1000000 (Time.posixToMillis model.time)))))
     SocketEvent id PortSocket.Close ->
       let _ = Debug.log "websocket closed" id in
       (model, Cmd.none)
