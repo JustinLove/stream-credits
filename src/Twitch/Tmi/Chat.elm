@@ -38,7 +38,7 @@ type Tag
   | MsgParamMonths Int
   | MsgParamRecipientDisplayName String
   | MsgParamRecipientId String
-  | MsgParamRecipientName String
+  | MsgParamRecipientUserName String
   | MsgParamSubPlan String
   | MsgParamSubPlanName String
   | RoomId String
@@ -139,8 +139,8 @@ tag =
       , succeed MsgParamRecipientId
         |. tagName "msg-param-recipient-id"
         |= tagValue
-      , succeed MsgParamRecipientName
-        |. tagName "msg-param-recipient-name"
+      , succeed MsgParamRecipientUserName
+        |. tagName "msg-param-recipient-user-name"
         |= tagValue
       , succeed MsgParamSubPlanName -- backward because of substring
         |. tagName "msg-param-sub-plan-name"

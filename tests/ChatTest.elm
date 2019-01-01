@@ -182,7 +182,7 @@ suite =
                     , Chat.MsgParamMonths 1
                     , Chat.MsgParamRecipientDisplayName "Mr_Woodchuck"
                     , Chat.MsgParamRecipientId "89614178"
-                    , Chat.MsgParamRecipientName "mr_woodchuck"
+                    , Chat.MsgParamRecipientUserName "mr_woodchuck"
                     , Chat.MsgParamSubPlanName "House of Nyoro~n"
                     , Chat.MsgParamSubPlan "1000"
                     , Chat.RoomId "19571752"
@@ -192,6 +192,38 @@ suite =
                     , Chat.Turbo False
                     , Chat.UserId "13405587"
                     , Chat.UserType "staff"
+                    ]
+      , test "anonymous gifted sub line" <|
+          \_ ->
+            case Parser.run Chat.line Chat.sampleAnonGiftedSubMessage of
+              Err err ->
+                Expect.fail (Chat.deadEndsToString err)
+              Ok line ->
+                line
+                  |> .tags
+                  |> Expect.equal
+                    [ Chat.Badges ["broadcaster/1","subscriber/6"]
+                    , Chat.Color ""
+                    , Chat.DisplayName "qa_subs_partner"
+                    , Chat.Emotes []
+                    , Chat.Flags ""
+                    , Chat.MessageId "b1818e3c-0005-490f-ad0a-804957ddd760"
+                    , Chat.Login "qa_subs_partner"
+                    , Chat.Mod False
+                    , Chat.MsgId "anonsubgift"
+                    , Chat.MsgParamMonths 3
+                    , Chat.MsgParamRecipientDisplayName "TenureCalculator"
+                    , Chat.MsgParamRecipientId "135054130"
+                    , Chat.MsgParamRecipientUserName "tenurecalculator"
+                    , Chat.MsgParamSubPlanName "t111"
+                    , Chat.MsgParamSubPlan "1000"
+                    , Chat.RoomId "196450059"
+                    , Chat.Subscriber True
+                    , Chat.SystemMsg "An anonymous user gifted a Tier 1 sub to TenureCalculator! "
+                    , Chat.TmiSentTs (Time.millisToPosix 1542063432068)
+                    , Chat.Turbo False
+                    , Chat.UserId "196450059"
+                    , Chat.UserType ""
                     ]
       ]
     , describe "prefix"
