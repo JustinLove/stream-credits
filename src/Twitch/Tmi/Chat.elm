@@ -35,12 +35,15 @@ type Tag
   | MessageId String
   | Mod Bool
   | MsgId String
+  | MsgParamDisplayName String
+  | MsgParamLogin String
   | MsgParamMonths Int
   | MsgParamRecipientDisplayName String
   | MsgParamRecipientId String
   | MsgParamRecipientUserName String
   | MsgParamSubPlan String
   | MsgParamSubPlanName String
+  | MsgParamViewerCount Int
   | RoomId String
   | Subscriber Bool
   | SystemMsg String
@@ -130,6 +133,12 @@ tag =
       , succeed MsgId
         |. tagName "msg-id"
         |= tagValue
+      , succeed MsgParamDisplayName
+        |. tagName "msg-param-displayName"
+        |= tagValue
+      , succeed MsgParamLogin
+        |. tagName "msg-param-login"
+        |= tagValue
       , succeed MsgParamMonths
         |. tagName "msg-param-months"
         |= int "Expecting Int" "Invalid Int"
@@ -148,6 +157,9 @@ tag =
       , succeed MsgParamSubPlan
         |. tagName "msg-param-sub-plan"
         |= tagValue
+      , succeed MsgParamViewerCount
+        |. tagName "msg-param-viewerCount"
+        |= int "Expecting Int" "Invalid Int"
       , succeed RoomId
         |. tagName "room-id"
         |= tagValue
@@ -209,7 +221,10 @@ tagEscapedStringStep reverseChunks =
   oneOf
     [ succeed (\m -> Loop (m :: reverseChunks))
       |. symbol (Token "\\" "Expecting backslash")
-      |= map (always " ") (token (Token "s" "looking for escaped space"))
+      |= oneOf
+        [ map (always " ") (token (Token "s" "looking for escaped space"))
+        , map (always "\n") (token (Token "n" "looking for escaped newline"))
+        ]
     , succeed (\m -> Loop (m :: reverseChunks))
         |= (getChompedString <|
             succeed ()

@@ -225,6 +225,34 @@ suite =
                     , Chat.UserId "196450059"
                     , Chat.UserType ""
                     ]
+      , test "channel raided line" <|
+          \_ ->
+            case Parser.run Chat.line Chat.sampleRaidedMessage of
+              Err err ->
+                Expect.fail (Chat.deadEndsToString err)
+              Ok line ->
+                line
+                  |> .tags
+                  |> Expect.equal
+                    [ Chat.Badges ["turbo/1"]
+                    , Chat.Color "#9ACD32"
+                    , Chat.DisplayName "TestChannel"
+                    , Chat.Emotes []
+                    , Chat.MessageId "3d830f12-795c-447d-af3c-ea05e40fbddb"
+                    , Chat.Login "testchannel"
+                    , Chat.Mod False
+                    , Chat.MsgId "raid"
+                    , Chat.MsgParamDisplayName "TestChannel"
+                    , Chat.MsgParamLogin "testchannel"
+                    , Chat.MsgParamViewerCount 15
+                    , Chat.RoomId "56379257"
+                    , Chat.Subscriber False
+                    , Chat.SystemMsg "15 raiders from TestChannel have joined\n!"
+                    , Chat.TmiSentTs (Time.millisToPosix 1507246572675)
+                    , Chat.Turbo True
+                    , Chat.UserId "123456"
+                    , Chat.UserType ""
+                    ]
       ]
     , describe "prefix"
       [ test "domain name" <|
