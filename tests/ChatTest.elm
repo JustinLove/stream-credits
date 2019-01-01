@@ -162,6 +162,37 @@ suite =
                     , Chat.UserId "1337"
                     , Chat.UserType "staff"
                     ]
+      , test "gifted sub line" <|
+          \_ ->
+            case Parser.run Chat.line Chat.sampleGiftedSubMessage of
+              Err err ->
+                Expect.fail (Chat.deadEndsToString err)
+              Ok line ->
+                line
+                  |> .tags
+                  |> Expect.equal
+                    [ Chat.Badges ["staff/1","premium/1"]
+                    , Chat.Color "#0000FF"
+                    , Chat.DisplayName "TWW2"
+                    , Chat.Emotes []
+                    , Chat.MessageId "e9176cd8-5e22-4684-ad40-ce53c2561c5e"
+                    , Chat.Login "tww2"
+                    , Chat.Mod False
+                    , Chat.MsgId "subgift"
+                    , Chat.MsgParamMonths 1
+                    , Chat.MsgParamRecipientDisplayName "Mr_Woodchuck"
+                    , Chat.MsgParamRecipientId "89614178"
+                    , Chat.MsgParamRecipientName "mr_woodchuck"
+                    , Chat.MsgParamSubPlanName "House of Nyoro~n"
+                    , Chat.MsgParamSubPlan "1000"
+                    , Chat.RoomId "19571752"
+                    , Chat.Subscriber False
+                    , Chat.SystemMsg "TWW2 gifted a Tier 1 sub to Mr_Woodchuck!"
+                    , Chat.TmiSentTs (Time.millisToPosix 1521159445153)
+                    , Chat.Turbo False
+                    , Chat.UserId "13405587"
+                    , Chat.UserType "staff"
+                    ]
       ]
     , describe "prefix"
       [ test "domain name" <|

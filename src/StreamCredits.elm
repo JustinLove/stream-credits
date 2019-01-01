@@ -257,6 +257,8 @@ chatResponse id line model =
           |> Maybe.withDefault Cmd.none
         ]
       )
+    "PRIVMSG" ->
+      (model, Cmd.none)
     _ ->
       let _ = Debug.log "parse" line in
       (model, Cmd.none)

@@ -36,6 +36,9 @@ type Tag
   | Mod Bool
   | MsgId String
   | MsgParamMonths Int
+  | MsgParamRecipientDisplayName String
+  | MsgParamRecipientId String
+  | MsgParamRecipientName String
   | MsgParamSubPlan String
   | MsgParamSubPlanName String
   | RoomId String
@@ -130,9 +133,18 @@ tag =
       , succeed MsgParamMonths
         |. tagName "msg-param-months"
         |= int "Expecting Int" "Invalid Int"
+      , succeed MsgParamRecipientDisplayName
+        |. tagName "msg-param-recipient-display-name"
+        |= tagValue
+      , succeed MsgParamRecipientId
+        |. tagName "msg-param-recipient-id"
+        |= tagValue
+      , succeed MsgParamRecipientName
+        |. tagName "msg-param-recipient-name"
+        |= tagValue
       , succeed MsgParamSubPlanName -- backward because of substring
         |. tagName "msg-param-sub-plan-name"
-        |= tagValue
+        |= tagEscapedString
       , succeed MsgParamSubPlan
         |. tagName "msg-param-sub-plan"
         |= tagValue
