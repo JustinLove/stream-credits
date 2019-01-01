@@ -2,7 +2,7 @@ module StreamCredits exposing (..)
 
 import PortSocket
 import Twitch.Tmi.Chat as Chat
-import View exposing (Host, Follow)
+import View exposing (Host, Raid, Follow)
 
 import Browser
 import Browser.Dom as Dom
@@ -33,7 +33,7 @@ type Msg
   | Self (Result Http.Error (List Helix.User))
   | Follows (Result Http.Error (List Helix.Follow))
   | CurrentStream (Result Http.Error (List Helix.Stream))
-  | WebSocketTest PortSocket.Id PortSocket.Event
+  | SocketEvent PortSocket.Id PortSocket.Event
 
 type alias Model =
   { location : Url
@@ -46,6 +46,7 @@ type alias Model =
   , auth : Maybe String
   , authLogin : Maybe String
   , hosts : List Host
+  , raids : List Raid
   , follows : List Follow
   , currentFollows : List Follow
   , streamStart : Int
@@ -77,10 +78,13 @@ init flags location key =
     , auth = mauth
     , authLogin = Nothing
     , hosts = []
+    , raids = []
     , follows = []
     , currentFollows = []
     , streamStart = 0
     }
+    --|> update (SocketEvent 0 (PortSocket.Message "@badges=turbo/1;color=#9ACD32;display-name=MakingsOfAHero;emotes=;id=3d830f12-795c-447d-af3c-ea05e40fbddb;login=makingsofahero;mod=0;msg-id=raid;msg-param-displayName=MakingsOfAHero;msg-param-login=makingsofahero;msg-param-viewerCount=15;room-id=56379257;subscriber=0;system-msg=15\\sraiders\\sfrom\\sTestChannel\\shave\\sjoined\\n!;tmi-sent-ts=1507246572675;turbo=1;user-id=32472036;user-type= :tmi.twitch.tv USERNOTICE #othertestchannel\r\n"))
+    --|> Tuple.first
   , Cmd.batch 
     [ ( case (muserId, mlogin) of
         (Just id, _) ->
@@ -206,10 +210,10 @@ update msg model =
     CurrentStream (Err error) ->
       let _ = Debug.log "stream fetch error" error in
       (model, Cmd.none)
-    WebSocketTest id (PortSocket.Error value) ->
+    SocketEvent id (PortSocket.Error value) ->
       let _ = Debug.log "websocket error" value in
       (model, Cmd.none)
-    WebSocketTest id PortSocket.Open ->
+    SocketEvent id PortSocket.Open ->
       let _ = Debug.log "websocket open" id in
       Maybe.map2 (\auth login -> 
         (model, Cmd.batch
@@ -222,10 +226,10 @@ update msg model =
         model.authLogin
       |> Maybe.withDefault
         (model, PortSocket.send id ("NICK justinfan1234"))
-    WebSocketTest id PortSocket.Close ->
+    SocketEvent id PortSocket.Close ->
       let _ = Debug.log "websocket closed" id in
       (model, Cmd.none)
-    WebSocketTest id (PortSocket.Message message) ->
+    SocketEvent id (PortSocket.Message message) ->
       let _ = Debug.log "websocket message" message in
       case (Parser.run Chat.message message) of
         Ok lines ->
@@ -240,6 +244,24 @@ chatResponse id line model =
     "PING" -> 
       let _ = Debug.log "PONG" "" in
       (model, PortSocket.send id ("PONG :tmi.twitch.tv"))
+    "PRIVMSG" -> (model, Cmd.none)
+    "USERNOTICE" ->
+      let _ = Debug.log "usernotice" line in
+      let
+        msgId = line.tags
+          |> List.filterMap (\tag -> case tag of 
+            Chat.MsgId kind -> Just kind
+            _ -> Nothing
+          )
+          |> List.head
+          |> Maybe.withDefault (Chat.UnknownNotice "missing msg-id")
+      in
+      case msgId of
+        Chat.Raid -> 
+          let raid = myRaid line in
+          ( { model | raids = raid :: model.raids }, Cmd.none )
+        _ -> 
+          (model, Cmd.none)
     "001" -> (model, Cmd.none)
     "002" -> (model, Cmd.none)
     "003" -> (model, Cmd.none)
@@ -257,8 +279,6 @@ chatResponse id line model =
           |> Maybe.withDefault Cmd.none
         ]
       )
-    "PRIVMSG" ->
-      (model, Cmd.none)
     _ ->
       let _ = Debug.log "parse" line in
       (model, Cmd.none)
@@ -275,7 +295,7 @@ subscriptions model =
   Sub.batch
     [ Browser.Events.onResize (\w h -> WindowSize (w, h))
     , Browser.Events.onAnimationFrameDelta FrameStep
-    , PortSocket.receive WebSocketTest
+    , PortSocket.receive SocketEvent
     ]
 
 myHost : Tmi.Host -> Host
@@ -283,6 +303,16 @@ myHost host =
   { hostId = host.hostId
   , hostDisplayName = host.hostDisplayName
   }
+
+myRaid : Chat.Line -> Raid
+myRaid line =
+  List.foldl (\tag raid ->
+      case tag of
+        Chat.MsgParamDisplayName name -> {raid | displayName = name}
+        Chat.UserId id -> {raid | userId = id}
+        Chat.MsgParamViewerCount count -> {raid | viewerCount = count}
+        _ -> raid
+    ) (Raid "" "" 0) line.tags
 
 fetchHostsUrl : String -> String
 fetchHostsUrl id =

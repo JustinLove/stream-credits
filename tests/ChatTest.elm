@@ -150,7 +150,7 @@ suite =
                     , Chat.MessageId "db25007f-7a18-43eb-9379-80131e44d633"
                     , Chat.Login "ronni"
                     , Chat.Mod False
-                    , Chat.MsgId "resub"
+                    , Chat.MsgId Chat.Resub
                     , Chat.MsgParamMonths 6
                     , Chat.MsgParamSubPlan "Prime"
                     , Chat.MsgParamSubPlanName "Prime"
@@ -172,7 +172,7 @@ suite =
                   |> .tags
                   |> removeUninterestingTags
                   |> Expect.equal
-                    [ Chat.MsgId "subgift"
+                    [ Chat.MsgId Chat.SubGift
                     , Chat.MsgParamMonths 1
                     , Chat.MsgParamRecipientDisplayName "Mr_Woodchuck"
                     , Chat.MsgParamRecipientId "89614178"
@@ -192,7 +192,7 @@ suite =
                   |> removeUninterestingTags
                   |> Expect.equal
                     [ Chat.Flags ""
-                    , Chat.MsgId "anonsubgift"
+                    , Chat.MsgId Chat.AnonSubGift
                     , Chat.MsgParamMonths 3
                     , Chat.MsgParamRecipientDisplayName "TenureCalculator"
                     , Chat.MsgParamRecipientId "135054130"
@@ -211,7 +211,7 @@ suite =
                   |> .tags
                   |> removeUninterestingTags
                   |> Expect.equal
-                    [ Chat.MsgId "raid"
+                    [ Chat.MsgId Chat.Raid
                     , Chat.MsgParamDisplayName "TestChannel"
                     , Chat.MsgParamLogin "testchannel"
                     , Chat.MsgParamViewerCount 15
@@ -227,7 +227,7 @@ suite =
                   |> .tags
                   |> removeUninterestingTags
                   |> Expect.equal
-                    [ Chat.MsgId "ritual"
+                    [ Chat.MsgId Chat.Ritual
                     , Chat.MsgParamRitualName "new_chatter"
                     , Chat.SystemMsg "Seventoes is new here!"
                     ]

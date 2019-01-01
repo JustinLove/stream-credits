@@ -1,4 +1,4 @@
-module View exposing (Msg(..), Host, Follow, document, view, creditsOff)
+module View exposing (Msg(..), Host, Raid, Follow, document, view, creditsOff)
 
 import TwitchId
 
@@ -22,6 +22,12 @@ type Msg
 type alias Host =
   { hostId : String
   , hostDisplayName : String
+  }
+
+type alias Raid =
+  { userId : String
+  , displayName : String
+  , viewerCount : Int
   }
 
 type alias Follow =
@@ -110,7 +116,11 @@ view model =
                 , centerX
                 ]
                 (text "Thanks for watching!")
+              , model.raids
+                |> List.map .displayName
+                |> displaySection model.windowHeight "Thanks for raiding!"
               , model.hosts
+                |> notRaids model.raids
                 |> List.map .hostDisplayName
                 |> displaySection model.windowHeight "Thanks for hosting!"
               , model.currentFollows
@@ -119,6 +129,14 @@ view model =
               ]
         ]
     ]
+
+notRaids : List Raid -> List Host -> List Host
+notRaids raids = 
+  List.filter (\host ->
+    raids
+      |> List.filter (\raid -> raid.userId == host.hostId)
+      |> List.isEmpty
+  )
 
 displaySection : Int -> String -> List String -> Element Msg
 displaySection height title items =

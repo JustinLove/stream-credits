@@ -6,6 +6,7 @@ module Twitch.Tmi.Chat exposing
   , Tag(..)
   , Emote(..)
   , CharacterRange
+  , NoticeType(..)
   , prefix
   , command
   , params
@@ -35,7 +36,7 @@ type Tag
   | Login String
   | MessageId String
   | Mod Bool
-  | MsgId String
+  | MsgId NoticeType
   | MsgParamDisplayName String
   | MsgParamLogin String
   | MsgParamMonths Int
@@ -55,6 +56,14 @@ type Tag
   | UserId String
   | UserType String
   | UnknownTag String String
+type NoticeType
+  = AnonSubGift
+  | HostOn
+  | Raid
+  | Ritual
+  | Resub
+  | SubGift
+  | UnknownNotice String
 type Emote = Emote String (List CharacterRange)
 type alias CharacterRange = (Int,Int)
 type alias Message = List Line
@@ -138,7 +147,7 @@ tag =
         |= tagBool
       , succeed MsgId
         |. tagName "msg-id"
-        |= tagValue
+        |= tagMsgId
       , succeed MsgParamDisplayName
         |. tagName "msg-param-displayName"
         |= tagValue
@@ -320,6 +329,30 @@ characterRange =
       |= int "Expecting Int" "Invalid Number"
       |. symbol (Token "-" "expecting - between character start and end")
       |= int "Expecting Int" "Invalid Number"
+
+tagMsgId : MessageParser NoticeType
+tagMsgId =
+  inContext "parsing msg-id" <|
+    oneOf
+      [ succeed AnonSubGift
+        |. msgIdName "anonsubgift"
+      , succeed HostOn
+        |. msgIdName "host_on"
+      , succeed Raid
+        |. msgIdName "raid"
+      , succeed Ritual
+        |. msgIdName "ritual"
+      , succeed Resub
+        |. msgIdName "resub"
+      , succeed SubGift
+        |. msgIdName "subgift"
+      , succeed UnknownNotice
+        |= tagValue
+      ]
+
+msgIdName : String -> MessageParser ()
+msgIdName name =
+  keyword (Token name ("Looking for a msg-id " ++ name))
 
 optionalPrefix : MessageParser (Maybe String)
 optionalPrefix =
