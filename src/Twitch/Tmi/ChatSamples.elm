@@ -30,6 +30,8 @@ sampleRaidedMessage = "@badges=turbo/1;color=#9ACD32;display-name=TestChannel;em
 
 sampleNewChatterMessage = "@badges=;color=;display-name=SevenTest1;emotes=30259:0-6;id=37feed0f-b9c7-4c3a-b475-21c6c6d21c3d;login=seventest1;mod=0;msg-id=ritual;msg-param-ritual-name=new_chatter;room-id=6316121;subscriber=0;system-msg=Seventoes\\sis\\snew\\shere!;tmi-sent-ts=1508363903826;turbo=0;user-id=131260580;user-type= :tmi.twitch.tv USERNOTICE #seventoes :HeyGuys\r\n"
 
+samplePurgeMessage = "@ban-duration=1;room-id=27847836;target-user-id=44890575;tmi-sent-ts=1546359140305 :tmi.twitch.tv CLEARCHAT #darktwinge :landscapegoat\r\n"
+
 sampleHostNoticeMessage = "@msg-id=host_on :tmi.twitch.tv NOTICE #wondible :Now hosting ZermistTV.\r\n"
 
 sampleHostTargetMessage = ":tmi.twitch.tv HOSTTARGET #wondible :zermisttv 3\r\n"

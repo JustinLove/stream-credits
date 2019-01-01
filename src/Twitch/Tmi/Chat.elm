@@ -26,6 +26,7 @@ type alias Line =
   }
 type Tag
   = Badges (List String)
+  | BanDuration Int
   | Bits Int
   | Color String
   | DisplayName String
@@ -48,6 +49,7 @@ type Tag
   | RoomId String
   | Subscriber Bool
   | SystemMsg String
+  | TargetUserId String
   | TmiSentTs Time.Posix
   | Turbo Bool
   | UserId String
@@ -107,6 +109,9 @@ tag =
       [ succeed Badges
         |. tagName "badges"
         |= tagBadgeList
+      , succeed BanDuration
+        |. tagName "ban-duration"
+        |= int "Expecting Int" "Invalid Int"
       , succeed Bits
         |. tagName "bits"
         |= int "Expecting Int" "Invalid Int"
@@ -173,6 +178,9 @@ tag =
       , succeed SystemMsg
         |. tagName "system-msg"
         |= tagEscapedString
+      , succeed TargetUserId
+        |. tagName "target-user-id"
+        |= tagValue
       , succeed TmiSentTs
         |. tagName "tmi-sent-ts"
         |= tagTimestamp

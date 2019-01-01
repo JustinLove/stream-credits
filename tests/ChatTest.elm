@@ -231,6 +231,19 @@ suite =
                     , Chat.MsgParamRitualName "new_chatter"
                     , Chat.SystemMsg "Seventoes is new here!"
                     ]
+      , test "purge message" <|
+          \_ ->
+            case Parser.run Chat.line Chat.samplePurgeMessage of
+              Err err ->
+                Expect.fail (Chat.deadEndsToString err)
+              Ok line ->
+                line
+                  |> .tags
+                  |> removeUninterestingTags
+                  |> Expect.equal
+                    [ Chat.BanDuration 1
+                    , Chat.TargetUserId "44890575"
+                    ]
       ]
     , describe "prefix"
       [ test "domain name" <|
