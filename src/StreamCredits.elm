@@ -28,6 +28,7 @@ type Msg
   | Navigate Browser.UrlRequest
   | CurrentTime Time.Posix
   | WindowSize (Int, Int)
+  | Visibility Browser.Events.Visibility
   | FrameStep Float
   | Hosts (Result Http.Error (List Tmi.Host))
   | User (Result Http.Error (List Helix.User))
@@ -42,6 +43,7 @@ type alias Model =
   , time : Time.Posix
   , windowWidth : Int
   , windowHeight : Int
+  , visibility : Browser.Events.Visibility
   , timeElapsed : Float
   , login : Maybe String
   , userId : Maybe String
@@ -75,6 +77,7 @@ init flags location key =
     , time = Time.millisToPosix 0
     , windowWidth = 480
     , windowHeight = 480
+    , visibility = Browser.Events.Visible
     , timeElapsed = 0
     , login = mlogin
     , userId = muserId
@@ -122,6 +125,8 @@ update msg model =
       ( {model | time = time}, Cmd.none)
     WindowSize (width, height) ->
       ( {model | windowWidth = width, windowHeight = height}, Cmd.none)
+    Visibility visible ->
+      ( {model | visibility = visible, timeElapsed = 0 }, Cmd.none)
     FrameStep delta ->
       if View.creditsOff model then
         ( {model | timeElapsed = delta }, Cmd.none )
@@ -300,7 +305,11 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.batch
     [ Browser.Events.onResize (\w h -> WindowSize (w, h))
-    , Browser.Events.onAnimationFrameDelta FrameStep
+    , if model.visibility == Browser.Events.Visible then
+        Browser.Events.onAnimationFrameDelta FrameStep
+      else
+        Sub.none
+    , Browser.Events.onVisibilityChange Visibility
     , PortSocket.receive SocketEvent
     ]
 
