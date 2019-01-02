@@ -239,7 +239,7 @@ update msg model =
       (model, Cmd.none)
     SocketEvent id PortSocket.Open ->
       let _ = Debug.log "websocket open" id in
-      Maybe.map2 (\auth login -> 
+      Maybe.map2 (\auth login ->
         (model, Cmd.batch
           -- order is reversed, because elm feels like it
           [ PortSocket.send id ("NICK " ++ login)
