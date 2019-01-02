@@ -322,7 +322,7 @@ chatConnectionUpdate model =
       )
     (Joined id login channel, Nothing) ->
       ( model
-      , PortSocket.send id ("PART #" ++ channel)
+      , PortSocket.send id ("PART " ++ channel)
       )
     (_, _) ->
       (model, Cmd.none)
