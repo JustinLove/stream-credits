@@ -8,6 +8,7 @@ module Twitch.Tmi.Chat exposing
   , CharacterRange
   , NoticeType(..)
   , prefix
+  , extractUserFromPrefix
   , command
   , params
   , deadEndsToString
@@ -383,6 +384,20 @@ fullyQualifiedUser =
         |. user
         |. symbol (Token "@" "looking for @")
         |. host
+
+extractUserFromPrefix : String -> Result (List (DeadEnd String String)) String
+extractUserFromPrefix =
+  run userFromPrefix
+
+userFromPrefix : MessageParser String
+userFromPrefix =
+  inContext "user from prefix" <|
+    succeed identity
+      |. nick
+      |. symbol (Token "!" "looking for !")
+      |= user
+      |. symbol (Token "@" "looking for @")
+      |. host
 
 nick : MessageParser String
 nick =

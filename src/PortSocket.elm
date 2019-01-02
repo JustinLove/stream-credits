@@ -24,8 +24,8 @@ type alias Id = Int
 
 type Event
   = Error Value
-  | Open
-  | Close
+  | Open String
+  | Close String
   | Message String
 
 idEvent : Decoder (Id, Event)
@@ -40,8 +40,8 @@ event =
     |> andThen (\kind ->
       case kind of
         "error" -> map Error (field "error" value)
-        "open" -> succeed Open
-        "close" -> succeed Close
+        "open" -> map Open (field "url" string)
+        "close" -> map Close (field "url" string)
         "message" -> map Message (field "message" string)
         _ -> succeed (Error Json.Encode.null)
     )

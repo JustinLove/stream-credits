@@ -31,12 +31,12 @@ if (app.ports.webSocketConnect) {
 
     ws.onopen = function() {
       //console.log('js websocket opened')
-      app.ports.webSocketReceive.send({kind: "open", id: ws.id})
+      app.ports.webSocketReceive.send({kind: "open", id: ws.id, url: address})
     }
 
     ws.onclose = function() {
       //console.log('js websocket closed')
-      app.ports.webSocketReceive.send({kind: "close", id: ws.id})
+      app.ports.webSocketReceive.send({kind: "close", id: ws.id, url: address})
       var index = connections.indexOf(ws)
       if (index > -1) connections.splice(index, 1)
     }

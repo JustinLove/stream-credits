@@ -22,6 +22,8 @@ import Url.Builder as Url
 import Url.Parser
 import Url.Parser.Query
 
+twitchIrc = "wss://irc-ws.chat.twitch.tv:443"
+
 type Msg
   = UI (View.Msg)
   | CurrentUrl Url
@@ -37,6 +39,13 @@ type Msg
   | CurrentStream (Result Http.Error (List Helix.Stream))
   | SocketEvent PortSocket.Id PortSocket.Event
 
+type ConnectionStatus
+  = Disconnected
+  | Connecting String
+  | Connected PortSocket.Id
+  | LoggedIn PortSocket.Id String
+  | Joined PortSocket.Id String String
+
 type alias Model =
   { location : Url
   , navigationKey : Navigation.Key
@@ -49,6 +58,7 @@ type alias Model =
   , userId : Maybe String
   , auth : Maybe String
   , authLogin : Maybe String
+  , ircConnection : ConnectionStatus
   , hosts : List Host
   , raids : List Raid
   , follows : List Follow
@@ -80,6 +90,7 @@ init flags location key =
       , userId = Nothing
       , auth = Nothing
       , authLogin = Nothing
+      , ircConnection = Connecting twitchIrc
       , hosts = []
       , raids = []
       , follows = []
@@ -96,7 +107,7 @@ init flags location key =
     , Dom.getViewport
       |> Task.map (\viewport -> (round viewport.viewport.width, round viewport.viewport.height))
       |> Task.perform WindowSize
-    , PortSocket.connect "wss://irc-ws.chat.twitch.tv:443"
+    , PortSocket.connect twitchIrc
     ]
   )
 
@@ -237,10 +248,10 @@ update msg model =
     SocketEvent id (PortSocket.Error value) ->
       let _ = Debug.log "websocket error" value in
       (model, Cmd.none)
-    SocketEvent id PortSocket.Open ->
+    SocketEvent id (PortSocket.Open url) ->
       let _ = Debug.log "websocket open" id in
       Maybe.map2 (\auth login ->
-        (model, Cmd.batch
+        ({model | ircConnection = Connected id}, Cmd.batch
           -- order is reversed, because elm feels like it
           [ PortSocket.send id ("NICK " ++ login)
           , PortSocket.send id ("PASS oauth:" ++ auth)
@@ -249,10 +260,10 @@ update msg model =
         model.auth
         model.authLogin
       |> Maybe.withDefault
-        (model, PortSocket.send id ("NICK justinfan" ++ (String.fromInt (modBy 1000000 (Time.posixToMillis model.time)))))
-    SocketEvent id PortSocket.Close ->
+        ({model | ircConnection = Connected id}, PortSocket.send id ("NICK justinfan" ++ (String.fromInt (modBy 1000000 (Time.posixToMillis model.time)))))
+    SocketEvent id (PortSocket.Close url) ->
       let _ = Debug.log "websocket closed" id in
-      (model, Cmd.none)
+      ({model | ircConnection = Disconnected}, Cmd.none)
     SocketEvent id (PortSocket.Message message) ->
       let _ = Debug.log "websocket message" message in
       case (Parser.run Chat.message message) of
@@ -265,6 +276,17 @@ update msg model =
 chatResponse : PortSocket.Id -> Chat.Line -> Model -> (Model, Cmd Msg)
 chatResponse id line model =
   case line.command of
+    "JOIN" ->
+      let
+          user = line.prefix
+            |> Maybe.map Chat.extractUserFromPrefix
+            |> Maybe.withDefault (Err [])
+            |> Result.withDefault "unknown"
+          channel = line.params
+            |> List.head
+            |> Maybe.withDefault "unknown"
+      in
+      ({model | ircConnection = Joined id user channel}, Cmd.none)
     "PING" -> 
       --let _ = Debug.log "PONG" "" in
       (model, PortSocket.send id ("PONG :tmi.twitch.tv"))
@@ -294,7 +316,7 @@ chatResponse id line model =
     "372" -> (model, Cmd.none)
     "376" -> 
       --let _ = Debug.log "logged in" "" in
-      ( model
+      ( {model | ircConnection = LoggedIn id (line.params |> List.head |> Maybe.withDefault "unknown")}
       , Cmd.batch
         [ PortSocket.send id "CAP REQ :twitch.tv/tags"
         , PortSocket.send id "CAP REQ :twitch.tv/commands"
