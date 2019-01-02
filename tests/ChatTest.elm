@@ -79,6 +79,24 @@ suite =
                   "PRIVMSG"
                   ["#wondible", "test"])
                 )
+      , test "room state" <|
+          \_ ->
+            case Parser.run Chat.line Chat.sampleRoomStateMessage of
+              Err err ->
+                Expect.fail (Chat.deadEndsToString err)
+              Ok line ->
+                line
+                  |> .tags
+                  |> removeUninterestingTags
+                  |> Expect.equal
+                    [ Chat.BroadcasterLang ""
+                    , Chat.EmoteOnly False
+                    , Chat.FollowersOnly -1
+                    , Chat.R9k False
+                    , Chat.Rituals False
+                    , Chat.Slow 0
+                    , Chat.SubsOnly False
+                    ]
       , test "emote chat line" <|
           \_ ->
             case Parser.run Chat.line Chat.sampleEmoteChatMessage of

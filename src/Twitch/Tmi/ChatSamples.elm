@@ -6,6 +6,8 @@ samplePingMessage = "PING :tmi.twitch.tv\r\n"
 
 sampleJoinMessage = ":wondibot!wondibot@wondibot.tmi.twitch.tv JOIN #wondible\r\n"
 
+sampleRoomStateMessage = "@broadcaster-lang=;emote-only=0;followers-only=-1;r9k=0;rituals=0;room-id=56623426;slow=0;subs-only=0 :tmi.twitch.tv ROOMSTATE #wondible\r\n"
+
 sampleNamesMessage = ":wondibot.tmi.twitch.tv 353 wondibot = #wondible :wondibot\r\n:wondibot.tmi.twitch.tv 366 wondibot #wondible :End of /NAMES list\r\n"
 
 sampleChatMessage = ":wondible!wondible@wondible.tmi.twitch.tv PRIVMSG #wondible :test\r\n"

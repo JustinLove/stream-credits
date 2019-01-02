@@ -30,10 +30,13 @@ type Tag
   = Badges (List String)
   | BanDuration Int
   | Bits Int
+  | BroadcasterLang String
   | Color String
   | DisplayName String
+  | EmoteOnly Bool
   | Emotes (List Emote)
   | Flags String
+  | FollowersOnly Int
   | Login String
   | MessageId String
   | Mod Bool
@@ -48,8 +51,12 @@ type Tag
   | MsgParamSubPlan String
   | MsgParamSubPlanName String
   | MsgParamViewerCount Int
+  | R9k Bool
+  | Rituals Bool
   | RoomId String
+  | Slow Int
   | Subscriber Bool
+  | SubsOnly Bool
   | SystemMsg String
   | TargetUserId String
   | TmiSentTs Time.Posix
@@ -125,18 +132,27 @@ tag =
       , succeed Bits
         |. tagName "bits"
         |= int "Expecting Int" "Invalid Int"
+      , succeed BroadcasterLang
+        |. tagName "broadcaster-lang"
+        |= tagValue
       , succeed Color
         |. tagName "color"
         |= tagValue
       , succeed DisplayName
         |. tagName "display-name"
         |= tagValue
+      , succeed EmoteOnly
+        |. tagName "emote-only"
+        |= tagBool
       , succeed Emotes
         |. tagName "emotes"
         |= tagEmoteList
       , succeed Flags
         |. tagName "flags"
         |= tagValue
+      , succeed FollowersOnly
+        |. tagName "followers-only"
+        |= negatableInt
       , succeed Login
         |. tagName "login"
         |= tagValue
@@ -179,11 +195,23 @@ tag =
       , succeed MsgParamViewerCount
         |. tagName "msg-param-viewerCount"
         |= int "Expecting Int" "Invalid Int"
+      , succeed R9k
+        |. tagName "r9k"
+        |= tagBool
+      , succeed Rituals
+        |. tagName "rituals"
+        |= tagBool
       , succeed RoomId
         |. tagName "room-id"
         |= tagValue
+      , succeed Slow
+        |. tagName "slow"
+        |= int "Expecting Int" "Invalid Int"
       , succeed Subscriber
         |. tagName "subscriber"
+        |= tagBool
+      , succeed SubsOnly
+        |. tagName "subs-only"
         |= tagBool
       , succeed SystemMsg
         |. tagName "system-msg"
@@ -350,6 +378,15 @@ tagMsgId =
       , succeed UnknownNotice
         |= tagValue
       ]
+
+negatableInt : MessageParser Int
+negatableInt =
+  oneOf
+    [ succeed negate
+      |. symbol (Token "-" "looking for negation")
+      |= int "Expecting int" "Invalid number"
+    , int "Expecting int" "Invalid number"
+    ]
 
 msgIdName : String -> MessageParser ()
 msgIdName name =
