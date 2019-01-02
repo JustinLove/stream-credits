@@ -68,41 +68,30 @@ main = Browser.application
 init : () -> Url -> Navigation.Key -> (Model, Cmd Msg)
 init flags location key =
   let
-    mlogin = extractSearchArgument "login" location
-    muserId = extractSearchArgument "userId" location
-    mauth = extractHashArgument "access_token" location
+    initialModel =
+      { location = location
+      , navigationKey = key
+      , time = Time.millisToPosix 0
+      , windowWidth = 480
+      , windowHeight = 480
+      , visibility = Browser.Events.Visible
+      , timeElapsed = 0
+      , login = Nothing
+      , userId = Nothing
+      , auth = Nothing
+      , authLogin = Nothing
+      , hosts = []
+      , raids = []
+      , follows = []
+      , currentFollows = []
+      , streamStart = 0
+      }
+      --|> update (SocketEvent 0 (PortSocket.Message "@badges=turbo/1;color=#9ACD32;display-name=MakingsOfAHero;emotes=;id=3d830f12-795c-447d-af3c-ea05e40fbddb;login=makingsofahero;mod=0;msg-id=raid;msg-param-displayName=MakingsOfAHero;msg-param-login=makingsofahero;msg-param-viewerCount=15;room-id=56379257;subscriber=0;system-msg=15\\sraiders\\sfrom\\sTestChannel\\shave\\sjoined\\n!;tmi-sent-ts=1507246572675;turbo=1;user-id=32472036;user-type= :tmi.twitch.tv USERNOTICE #othertestchannel\r\n"))
+      --|> Tuple.first
+    (m2, argCmds) = update (CurrentUrl location) initialModel
   in
-  ( { location = location
-    , navigationKey = key
-    , time = Time.millisToPosix 0
-    , windowWidth = 480
-    , windowHeight = 480
-    , visibility = Browser.Events.Visible
-    , timeElapsed = 0
-    , login = mlogin
-    , userId = muserId
-    , auth = mauth
-    , authLogin = Nothing
-    , hosts = []
-    , raids = []
-    , follows = []
-    , currentFollows = []
-    , streamStart = 0
-    }
-    --|> update (SocketEvent 0 (PortSocket.Message "@badges=turbo/1;color=#9ACD32;display-name=MakingsOfAHero;emotes=;id=3d830f12-795c-447d-af3c-ea05e40fbddb;login=makingsofahero;mod=0;msg-id=raid;msg-param-displayName=MakingsOfAHero;msg-param-login=makingsofahero;msg-param-viewerCount=15;room-id=56379257;subscriber=0;system-msg=15\\sraiders\\sfrom\\sTestChannel\\shave\\sjoined\\n!;tmi-sent-ts=1507246572675;turbo=1;user-id=32472036;user-type= :tmi.twitch.tv USERNOTICE #othertestchannel\r\n"))
-    --|> Tuple.first
-  , Cmd.batch 
-    [ ( case (muserId, mlogin) of
-        (Just id, _) ->
-          Cmd.batch
-            [ fetchHosts id
-            , fetchFollows id
-            , fetchStreamById id
-            ]
-        (Nothing, Just login) -> fetchUserByName login
-        (Nothing, Nothing) -> Cmd.none
-      )
-    , fetchSelf mauth
+  (m2, Cmd.batch 
+    [ argCmds
     , Time.now |> Task.perform CurrentTime
     , Dom.getViewport
       |> Task.map (\viewport -> (round viewport.viewport.width, round viewport.viewport.height))
@@ -116,7 +105,31 @@ update msg model =
     UI (View.SetUsername username) ->
       ( { model | timeElapsed = 0 }, fetchUserByName username )
     CurrentUrl location ->
-      ( { model | location = location }, Cmd.none)
+      let
+        mlogin = extractSearchArgument "login" location
+        muserId = extractSearchArgument "userId" location
+        mauth = extractHashArgument "access_token" location
+      in
+      ( { model
+        | location = location
+        , login = mlogin
+        , userId = muserId
+        , auth = mauth
+        }
+      , Cmd.batch
+        [ ( case (muserId, mlogin) of
+          (Just id, _) ->
+            Cmd.batch
+              [ fetchHosts id
+              , fetchFollows id
+              , fetchStreamById id
+              ]
+          (Nothing, Just login) -> fetchUserByName login
+          (Nothing, Nothing) -> Cmd.none
+          )
+        , fetchSelf mauth
+        ]
+      )
     Navigate (Browser.Internal url) ->
       ( {model | location = url}
       , Navigation.pushUrl model.navigationKey (Url.toString url)
@@ -253,7 +266,7 @@ chatResponse : PortSocket.Id -> Chat.Line -> Model -> (Model, Cmd Msg)
 chatResponse id line model =
   case line.command of
     "PING" -> 
-      let _ = Debug.log "PONG" "" in
+      --let _ = Debug.log "PONG" "" in
       (model, PortSocket.send id ("PONG :tmi.twitch.tv"))
     "PRIVMSG" -> (model, Cmd.none)
     "USERNOTICE" ->
