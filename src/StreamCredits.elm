@@ -34,7 +34,6 @@ type Msg
   | FrameStep Float
   | Hosts (Result Http.Error (List Tmi.Host))
   | User (Result Http.Error (List Helix.User))
-  | Self (Result Http.Error (List Helix.User))
   | Follows (Result Http.Error (List Helix.Follow))
   | CurrentStream (Result Http.Error (List Helix.Stream))
   | SocketEvent PortSocket.Id PortSocket.Event
@@ -56,8 +55,6 @@ type alias Model =
   , timeElapsed : Float
   , login : Maybe String
   , userId : Maybe String
-  , auth : Maybe String
-  , authLogin : Maybe String
   , ircConnection : ConnectionStatus
   , hosts : List Host
   , raids : List Raid
@@ -88,8 +85,6 @@ init flags location key =
       , timeElapsed = 0
       , login = Nothing
       , userId = Nothing
-      , auth = Nothing
-      , authLogin = Nothing
       , ircConnection = Disconnected
       , hosts = []
       , raids = []
@@ -125,13 +120,11 @@ update msg model =
       let
         mlogin = extractSearchArgument "login" location
         muserId = extractSearchArgument "userId" location
-        mauth = extractHashArgument "access_token" location
       in
       ( { model
         | location = location
         , login = mlogin
         , userId = muserId
-        , auth = mauth
         }
       , Cmd.batch
         [ ( case (muserId, mlogin) of
@@ -144,7 +137,6 @@ update msg model =
           (Nothing, Just login) -> fetchUserByName login
           (Nothing, Nothing) -> Cmd.none
           )
-        , fetchSelf mauth
         ]
       )
     Navigate (Browser.Internal url) ->
@@ -193,22 +185,6 @@ update msg model =
     User (Err error) ->
       let _ = Debug.log "user fetch error" error in
       (model, Cmd.none)
-    Self (Ok (user::_)) ->
-      let
-        m2 =
-          { model
-          | authLogin = Just user.login
-          }
-      in
-      ( m2
-      , Cmd.none
-      )
-    Self (Ok _) ->
-      let _ = Debug.log "self lookup did not find a user" "" in
-      (model, Cmd.none)
-    Self (Err error) ->
-      let _ = Debug.log "self fetch error" error in
-      (model, Cmd.none)
     Hosts (Ok twitchHosts) ->
       ( { model
         | hosts = List.map myHost twitchHosts
@@ -256,17 +232,7 @@ update msg model =
       (model, Cmd.none)
     SocketEvent id (PortSocket.Open url) ->
       let _ = Debug.log "websocket open" id in
-      Maybe.map2 (\auth login ->
-        ({model | ircConnection = Connected id}, Cmd.batch
-          -- order is reversed, because elm feels like it
-          [ PortSocket.send id ("NICK " ++ login)
-          , PortSocket.send id ("PASS oauth:" ++ auth)
-          ])
-        )
-        model.auth
-        model.authLogin
-      |> Maybe.withDefault
-        ({model | ircConnection = Connected id}, PortSocket.send id ("NICK justinfan" ++ (String.fromInt (modBy 1000000 (Time.posixToMillis model.time)))))
+      ({model | ircConnection = Connected id}, PortSocket.send id ("NICK justinfan" ++ (String.fromInt (modBy 1000000 (Time.posixToMillis model.time)))))
     SocketEvent id (PortSocket.Close url) ->
       let _ = Debug.log "websocket closed" id in
       ({model | ircConnection = Disconnected}, Cmd.none)
@@ -460,23 +426,6 @@ fetchUserById id =
     , url = (fetchUserByIdUrl id)
     }
 
-fetchSelfUrl : String
-fetchSelfUrl =
-  "https://api.twitch.tv/helix/users"
-
-fetchSelf : Maybe String -> Cmd Msg
-fetchSelf auth =
-  if auth == Nothing then
-    Cmd.none
-  else
-    Helix.send <|
-      { clientId = TwitchId.clientId
-      , auth = auth
-      , decoder = Helix.users
-      , tagger = Self
-      , url = fetchSelfUrl
-      }
-
 fetchStreamByIdUrl : String -> String
 fetchStreamByIdUrl id =
   "https://api.twitch.tv/helix/streams?user_id=" ++ id
@@ -512,4 +461,4 @@ createQueryString model =
 
 createPath : Model -> String
 createPath model =
-  Url.custom Url.Relative [] (createQueryString model) (Maybe.map (\token -> "access_token=" ++ token) model.auth)
+  Url.custom Url.Relative [] (createQueryString model) Nothing

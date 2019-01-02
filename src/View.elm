@@ -99,8 +99,6 @@ view model =
                 (text "Thanks for watching!")
               , el [ centerX ] <|
                 displayNameEntryBox model.login
-              , el [ centerX ] <|
-                displayLogin model
               ]
           else
             column
@@ -180,39 +178,6 @@ displayNameEntryBox login =
         ] []
       ]
 
-displayLogin model =
-  case model.auth of
-    Just _ ->
-      row [ spacing (scaled model.windowHeight -2) ]
-        [ text <| Maybe.withDefault "--" model.authLogin
-        , link []
-            { url = (Url.relative [] [])
-            , label = text "logout"
-            }
-        ]
-    Nothing ->
-      link []
-        { url = authorizeUrl (urlForRedirect model.location)
-        , label = row [] [ icon "twitch", text "login" ]
-        }
-
-authorizeUrl : String -> String
-authorizeUrl redirectUri =
-  "https://api.twitch.tv/kraken/oauth2/authorize"
-    ++ (
-      [ Url.string "client_id" TwitchId.clientId
-      , Url.string "redirect_uri" redirectUri
-      , Url.string "response_type" "token"
-      , Url.string "scope" "chat:read"
-      ]
-      |> Url.toQuery
-      )
-
-urlForRedirect : Url -> String
-urlForRedirect url =
-  {url | query = Nothing, fragment = Nothing } |> Url.toString
-
-
 targetValue : Json.Decode.Decoder a -> (a -> Msg) -> Json.Decode.Decoder Msg
 targetValue decoder tagger =
   Json.Decode.map tagger
@@ -233,7 +198,6 @@ displayFooter model =
       { url = "https://twitch.tv/wondible"
       , label = row [] [ icon "twitch", text "wondible" ]
       }
-    , displayLogin model
     ]
 
 icon : String -> Element msg
