@@ -69,7 +69,7 @@ type alias Model =
 main = Browser.application
   { init = init
   , view = View.document UI
-  , update = update
+  , update = updateWithChecks
   , subscriptions = subscriptions
   , onUrlRequest = Navigate
   , onUrlChange = CurrentUrl
@@ -90,7 +90,7 @@ init flags location key =
       , userId = Nothing
       , auth = Nothing
       , authLogin = Nothing
-      , ircConnection = Connecting twitchIrc
+      , ircConnection = Disconnected
       , hosts = []
       , raids = []
       , follows = []
@@ -107,9 +107,15 @@ init flags location key =
     , Dom.getViewport
       |> Task.map (\viewport -> (round viewport.viewport.width, round viewport.viewport.height))
       |> Task.perform WindowSize
-    , PortSocket.connect twitchIrc
     ]
   )
+
+updateWithChecks msg model =
+  let
+    (m2,cmd2) = update msg model
+    (m3,cmd3) = chatConnectionUpdate m2
+  in
+    (m3,Cmd.batch[cmd2, cmd3])
 
 update msg model =
   case msg of
@@ -287,6 +293,14 @@ chatResponse id line model =
             |> Maybe.withDefault "unknown"
       in
       ({model | ircConnection = Joined id user channel}, Cmd.none)
+    "PART" ->
+      let
+          user = line.prefix
+            |> Maybe.map Chat.extractUserFromPrefix
+            |> Maybe.withDefault (Err [])
+            |> Result.withDefault "unknown"
+      in
+      ({model | ircConnection = LoggedIn id user}, Cmd.none)
     "PING" -> 
       --let _ = Debug.log "PONG" "" in
       (model, PortSocket.send id ("PONG :tmi.twitch.tv"))
@@ -327,6 +341,24 @@ chatResponse id line model =
       )
     _ ->
       let _ = Debug.log "parse" line in
+      (model, Cmd.none)
+
+chatConnectionUpdate : Model -> (Model, Cmd Msg)
+chatConnectionUpdate model =
+  case (model.ircConnection, model.login) of
+    (Disconnected, Just channel) ->
+      ( {model | ircConnection = Connecting twitchIrc}
+      , PortSocket.connect twitchIrc
+      )
+    (LoggedIn id login, Just channel) ->
+      ( model
+      , PortSocket.send id ("JOIN #" ++ channel)
+      )
+    (Joined id login channel, Nothing) ->
+      ( model
+      , PortSocket.send id ("PART #" ++ channel)
+      )
+    (_, _) ->
       (model, Cmd.none)
 
 reduce : (msg -> Model -> (Model, Cmd Msg)) -> msg -> (Model, Cmd Msg) -> (Model, Cmd Msg)
