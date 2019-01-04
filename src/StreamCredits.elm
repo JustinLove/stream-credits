@@ -43,6 +43,7 @@ type ConnectionStatus
   | Connecting String
   | Connected PortSocket.Id
   | LoggedIn PortSocket.Id String
+  | Joining PortSocket.Id String String
   | Joined PortSocket.Id String String
 
 type alias Model =
@@ -110,7 +111,7 @@ updateWithChecks msg model =
     (m2,cmd2) = update msg model
     (m3,cmd3) = chatConnectionUpdate m2
   in
-    (m3,Cmd.batch[cmd2, cmd3])
+    (m3,Cmd.batch[cmd3, cmd2])
 
 update msg model =
   case msg of
@@ -300,9 +301,6 @@ chatResponse id line model =
       , Cmd.batch
         [ PortSocket.send id "CAP REQ :twitch.tv/tags"
         , PortSocket.send id "CAP REQ :twitch.tv/commands"
-        , model.login
-          |> Maybe.map (\channel -> PortSocket.send id ("JOIN #" ++ channel))
-          |> Maybe.withDefault Cmd.none
         ]
       )
     _ ->
@@ -317,8 +315,12 @@ chatConnectionUpdate model =
       , PortSocket.connect twitchIrc
       )
     (LoggedIn id login, Just channel) ->
-      ( model
+      ( {model | ircConnection = Joining id login channel}
       , PortSocket.send id ("JOIN #" ++ channel)
+      )
+    (Joining id login channel, Nothing) ->
+      ( model
+      , PortSocket.send id ("PART #" ++ channel)
       )
     (Joined id login channel, Nothing) ->
       ( model
