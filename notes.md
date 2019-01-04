@@ -1,0 +1,1 @@
+- multiple logins when entering channel name

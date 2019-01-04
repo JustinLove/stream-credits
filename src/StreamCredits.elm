@@ -128,12 +128,7 @@ update msg model =
         }
       , Cmd.batch
         [ ( case (muserId, mlogin) of
-          (Just id, _) ->
-            Cmd.batch
-              [ fetchHosts id
-              , fetchFollows id
-              , fetchStreamById id
-              ]
+          (Just id, _) -> refresh muserId
           (Nothing, Just login) -> fetchUserByName login
           (Nothing, Nothing) -> Cmd.none
           )
@@ -148,7 +143,12 @@ update msg model =
     WindowSize (width, height) ->
       ( {model | windowWidth = width, windowHeight = height}, Cmd.none)
     Visibility visible ->
-      ( {model | visibility = visible, timeElapsed = 0 }, Cmd.none)
+      ( {model | visibility = visible, timeElapsed = 0 }
+      , if visible == Browser.Events.Visible then
+          refresh model.userId
+        else
+          Cmd.none
+      )
     FrameStep delta ->
       if View.creditsOff model then
         ( {model | timeElapsed = delta }, Cmd.none )
@@ -333,6 +333,18 @@ reduce step msg (model, cmd) =
     (m2, c2) = step msg model
   in
     (m2, Cmd.batch [cmd, c2])
+
+refresh : Maybe String -> Cmd Msg
+refresh mUserId =
+  case mUserId of
+    Just id ->
+      Cmd.batch
+        [ fetchHosts id
+        , fetchFollows id
+        , fetchStreamById id
+        ]
+    Nothing ->
+      Cmd.none
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
