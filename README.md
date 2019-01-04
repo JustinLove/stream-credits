@@ -1,5 +1,17 @@
 # StreamCredits
 
+Scrolling stream credits. Shows channels hosting at time of load, and follows that occurred since start of currently running stream (by Twitch API)
+
+## Url Paramters
+
+Once channel name is entered, it will update the url, this can be bookmarked or used as a browser scene in OBS etc.
+
+- `login`: channel name to report on
+- `userId`: channel user id for api calls, login will be converted to user id if needed
+
+## Raids: Chat Events
+
+The application will update data on visible change (e.g. streaming software scene change) It will also monitor chat for raids while running, so for this feature it should not be set to unload when not visible.
 
 ## Compiling
 
