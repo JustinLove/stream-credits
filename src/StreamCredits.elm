@@ -1,5 +1,6 @@
 module StreamCredits exposing (..)
 
+import ObsStudio
 import PortSocket
 import Twitch.Tmi.Chat as Chat
 import View exposing (Host, Raid, Follow)
@@ -357,6 +358,7 @@ subscriptions model =
       else
         Sub.none
     , Browser.Events.onVisibilityChange Visibility
+    , ObsStudio.onVisibilityChange Visibility
     , PortSocket.receive SocketEvent
     ]
 

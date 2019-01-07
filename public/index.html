@@ -61,6 +61,13 @@ if (app.ports.webSocketSend) {
   })
 }
 
+if (window.obsstudio
+    && app.ports.obsStudioOnVisibilityChange) {
+  window.obsstudio.onActiveChange = function(visible) {
+    app.ports.obsStudioOnVisibilityChange.send(visible)
+  }
+}
+
 </script>
 
 </html>
