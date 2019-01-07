@@ -229,11 +229,13 @@ suite =
                   |> .tags
                   |> removeUninterestingTags
                   |> Expect.equal
-                    [ Chat.MsgId Chat.Raid
-                    , Chat.MsgParamDisplayName "TestChannel"
-                    , Chat.MsgParamLogin "testchannel"
-                    , Chat.MsgParamViewerCount 15
-                    , Chat.SystemMsg "15 raiders from TestChannel have joined\n!"
+                    [ Chat.Flags ""
+                    , Chat.MsgId Chat.Raid
+                    , Chat.MsgParamDisplayName "ShyDies"
+                    , Chat.MsgParamLogin "shydies"
+                    , Chat.MsgParamProfileImageUrl "https://static-cdn.jtvnw.net/jtv_user_pictures/7332f19c-fc2f-4807-9800-1214887d3a3e-profile_image-70x70.jpg"
+                    , Chat.MsgParamViewerCount 21
+                    , Chat.SystemMsg "21 raiders from ShyDies have joined\n!"
                     ]
       , test "new chatter ritual" <|
           \_ ->

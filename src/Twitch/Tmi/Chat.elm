@@ -44,6 +44,7 @@ type Tag
   | MsgParamDisplayName String
   | MsgParamLogin String
   | MsgParamMonths Int
+  | MsgParamProfileImageUrl String
   | MsgParamRecipientDisplayName String
   | MsgParamRecipientId String
   | MsgParamRecipientUserName String
@@ -174,6 +175,9 @@ tag =
       , succeed MsgParamMonths
         |. tagName "msg-param-months"
         |= int "Expecting Int" "Invalid Int"
+      , succeed MsgParamProfileImageUrl
+        |. tagName "msg-param-profileImageURL"
+        |= tagValue
       , succeed MsgParamRecipientDisplayName
         |. tagName "msg-param-recipient-display-name"
         |= tagValue
