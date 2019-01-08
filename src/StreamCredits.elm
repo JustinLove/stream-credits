@@ -115,7 +115,7 @@ init flags location key =
       , streamStart = 0
       }
       --|> update (Subscriptions ((Decode.decodeString Kraken.subscriptions Kraken.sampleSubscriptions) |> Result.mapError (always Http.NetworkError))) |> Tuple.first
-      |> update (BitsLeaderboard ((Decode.decodeString Helix.bitsLeaderboard Helix.sampleBitsLeaderboard) |> Result.mapError (always Http.NetworkError))) |> Tuple.first
+      --|> update (BitsLeaderboard ((Decode.decodeString Helix.bitsLeaderboard Helix.sampleBitsLeaderboard) |> Result.mapError (always Http.NetworkError))) |> Tuple.first
       --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleResubMessage)) |> Tuple.first
       --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleGiftedSubMessage)) |> Tuple.first
       --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleAnonGiftedSubMessage)) |> Tuple.first
