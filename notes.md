@@ -1,0 +1,3 @@
+- url updates not being included in oath redirect
+- acting on url updates?
+- issueing a join when entering channel after authenticated
