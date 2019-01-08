@@ -41,7 +41,7 @@ type alias Sub =
   { userId : String
   , displayName : String
   , months : Int
-  , tier : Int
+  , points : Int
   }
 
 type alias Follow =
@@ -133,6 +133,7 @@ view model =
                 |> List.map .displayName
                 |> displaySection model.windowHeight "Thanks for the Bits!"
               , model.subs
+                |> Dict.values
                 |> List.map .displayName
                 |> displaySection model.windowHeight "Thanks for the Subs!"
               , model.raids

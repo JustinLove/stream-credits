@@ -64,7 +64,7 @@ type alias Model =
   , hosts : List Host
   , raids : List Raid
   , cheers : Dict String Cheer
-  , subs : List Sub
+  , subs : Dict String Sub
   , follows : List Follow
   , currentFollows : List Follow
   , streamStart : Int
@@ -96,7 +96,7 @@ init flags location key =
       , hosts = []
       , raids = []
       , cheers = Dict.empty
-      , subs = []
+      , subs = Dict.empty
       , follows = []
       , currentFollows = []
       , streamStart = 0
@@ -313,13 +313,13 @@ chatResponse id line model =
           ( { model | raids = raid :: model.raids }, Cmd.none )
         Chat.Resub -> 
           let sub = mySub line in
-          ( { model | subs = sub :: model.subs }, Cmd.none )
+          ( combineSubs sub model, Cmd.none )
         Chat.SubGift -> 
           let sub = mySub line in
-          ( { model | subs = sub :: model.subs }, Cmd.none )
+          ( combineSubs sub model, Cmd.none )
         Chat.AnonSubGift -> 
           let sub = mySub line in
-          ( { model | subs = {sub | displayName = "Anonymous"} :: model.subs }, Cmd.none )
+          ( combineSubs {sub | displayName = "anonymous"} model, Cmd.none )
         _ -> 
           (model, Cmd.none)
     "001" -> (model, Cmd.none)
@@ -339,6 +339,21 @@ chatResponse id line model =
     _ ->
       let _ = Debug.log "parse" line in
       (model, Cmd.none)
+
+combineSubs : Sub -> Model -> Model
+combineSubs sub model =
+  { model
+  | subs = Dict.update sub.userId (\mprev ->
+    case mprev of
+      Just prev -> Just
+        { prev
+        | months = max prev.months sub.months
+        , points = prev.points + sub.points
+        }
+      Nothing -> Just sub
+    )
+    model.subs
+  }
 
 chatConnectionUpdate : Model -> (Model, Cmd Msg)
 chatConnectionUpdate model =
@@ -430,15 +445,15 @@ mySub line =
         Chat.MsgParamSubPlan plan ->
           case plan of
             "Prime" ->
-              {sub | tier = 1}
+              {sub | points = 1}
             "1000" ->
-              {sub | tier = 1}
+              {sub | points = 1}
             "2000" ->
-              {sub | tier = 2}
+              {sub | points = 2}
             "3000" ->
-              {sub | tier = 3}
+              {sub | points = 3}
             _ ->
-              {sub | tier = 1}
+              {sub | points = 1}
         _ -> sub
     ) (Sub "" "" 0 0) line.tags
 
