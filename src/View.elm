@@ -2,6 +2,7 @@ module View exposing (Msg(..), Host, Raid, Cheer, Sub, Follow, document, view, c
 
 import TwitchId
 
+import Dict
 import Element exposing (..)
 import Element.Background as Background
 import Element.Region as Region
@@ -128,6 +129,7 @@ view model =
                 ]
                 (text "Thanks for watching!")
               , model.cheers
+                |> Dict.values
                 |> List.map .displayName
                 |> displaySection model.windowHeight "Thanks for the Bits!"
               , model.subs

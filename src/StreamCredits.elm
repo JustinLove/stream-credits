@@ -10,6 +10,7 @@ import Browser
 import Browser.Dom as Dom
 import Browser.Events
 import Browser.Navigation as Navigation
+import Dict exposing (Dict)
 import Http
 import Json.Decode as Decode
 import Parser.Advanced as Parser
@@ -62,7 +63,7 @@ type alias Model =
   , ircConnection : ConnectionStatus
   , hosts : List Host
   , raids : List Raid
-  , cheers : List Cheer
+  , cheers : Dict String Cheer
   , subs : List Sub
   , follows : List Follow
   , currentFollows : List Follow
@@ -94,7 +95,7 @@ init flags location key =
       , ircConnection = Disconnected
       , hosts = []
       , raids = []
-      , cheers = []
+      , cheers = Dict.empty
       , subs = []
       , follows = []
       , currentFollows = []
@@ -284,7 +285,15 @@ chatResponse id line model =
     "PRIVMSG" ->
       let cheer = myCheer line in
       if cheer.amount > 0 then
-        ( { model | cheers = cheer :: model.cheers }, Cmd.none )
+        ( { model
+          | cheers = Dict.update cheer.userId (\mprev ->
+            case mprev of
+              Just prev -> Just {prev | amount = prev.amount + cheer.amount}
+              Nothing -> Just cheer
+            )
+            model.cheers
+          }
+        , Cmd.none )
       else
         (model, Cmd.none)
     "USERNOTICE" ->
