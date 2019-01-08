@@ -3,7 +3,7 @@ module StreamCredits exposing (..)
 import ObsStudio
 import PortSocket
 import Twitch.Tmi.Chat as Chat
-import View exposing (Host, Raid, Follow)
+import View exposing (Host, Raid, Cheer, Follow)
 
 import Browser
 import Browser.Dom as Dom
@@ -60,6 +60,7 @@ type alias Model =
   , ircConnection : ConnectionStatus
   , hosts : List Host
   , raids : List Raid
+  , cheers : List Cheer
   , follows : List Follow
   , currentFollows : List Follow
   , streamStart : Int
@@ -90,10 +91,13 @@ init flags location key =
       , ircConnection = Disconnected
       , hosts = []
       , raids = []
+      , cheers = []
       , follows = []
       , currentFollows = []
       , streamStart = 0
       }
+      --|> update (SocketEvent 0 (PortSocket.Message "@badges=staff/1,bits/1000;bits=100;color=;display-name=dallas;emotes=;id=b34ccfc7-4977-403a-8a94-33c6bac34fb8;mod=0;room-id=1337;subscriber=0;tmi-sent-ts=1507246572675;turbo=1;user-id=1337;user-type=staff :ronni!ronni@ronni.tmi.twitch.tv PRIVMSG #dallas :cheer100\r\n"))
+      --|> Tuple.first
       --|> update (SocketEvent 0 (PortSocket.Message "@badges=turbo/1;color=#9ACD32;display-name=MakingsOfAHero;emotes=;id=3d830f12-795c-447d-af3c-ea05e40fbddb;login=makingsofahero;mod=0;msg-id=raid;msg-param-displayName=MakingsOfAHero;msg-param-login=makingsofahero;msg-param-viewerCount=15;room-id=56379257;subscriber=0;system-msg=15\\sraiders\\sfrom\\sTestChannel\\shave\\sjoined\\n!;tmi-sent-ts=1507246572675;turbo=1;user-id=32472036;user-type= :tmi.twitch.tv USERNOTICE #othertestchannel\r\n"))
       --|> Tuple.first
     (m2, argCmds) = update (CurrentUrl location) initialModel
@@ -272,7 +276,12 @@ chatResponse id line model =
     "PING" -> 
       --let _ = Debug.log "PONG" "" in
       (model, PortSocket.send id ("PONG :tmi.twitch.tv"))
-    "PRIVMSG" -> (model, Cmd.none)
+    "PRIVMSG" ->
+      let cheer = myCheer line in
+      if cheer.amount > 0 then
+        ( { model | cheers = cheer :: model.cheers }, Cmd.none )
+      else
+        (model, Cmd.none)
     "USERNOTICE" ->
       let _ = Debug.log "usernotice" line in
       let
@@ -377,6 +386,16 @@ myRaid line =
         Chat.MsgParamViewerCount count -> {raid | viewerCount = count}
         _ -> raid
     ) (Raid "" "" 0) line.tags
+
+myCheer : Chat.Line -> Cheer
+myCheer line =
+  List.foldl (\tag cheer ->
+      case tag of
+        Chat.DisplayName name -> {cheer | displayName = name}
+        Chat.UserId id -> {cheer | userId = id}
+        Chat.Bits amount -> {cheer | amount = amount}
+        _ -> cheer
+    ) (Cheer "" "" 0) line.tags
 
 fetchHostsUrl : String -> String
 fetchHostsUrl id =
