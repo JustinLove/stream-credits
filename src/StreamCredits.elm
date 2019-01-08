@@ -19,6 +19,8 @@ import Task
 import Time
 import Twitch.Helix as Helix
 import Twitch.Helix.Decode as Helix
+import Twitch.Kraken as Kraken
+import Twitch.Kraken.Decode as Kraken
 import Twitch.Tmi.Decode as Tmi
 import TwitchId
 import Url exposing (Url)
@@ -39,6 +41,7 @@ type Msg
   | Hosts (Result Http.Error (List Tmi.Host))
   | User (Result Http.Error (List Helix.User))
   | Follows (Result Http.Error (List Helix.Follow))
+  | Subscriptions (Result Http.Error (List Kraken.Subscription))
   | CurrentStream (Result Http.Error (List Helix.Stream))
   | SocketEvent PortSocket.Id PortSocket.Event
 
@@ -65,6 +68,7 @@ type alias Model =
   , raids : List Raid
   , cheers : Dict String Cheer
   , subs : Dict String Sub
+  , subscribers : List Sub
   , follows : List Follow
   , currentFollows : List Follow
   , streamStart : Int
@@ -97,10 +101,12 @@ init flags location key =
       , raids = []
       , cheers = Dict.empty
       , subs = Dict.empty
+      , subscribers = []
       , follows = []
       , currentFollows = []
       , streamStart = 0
       }
+      --|> update (Subscriptions ((Decode.decodeString Kraken.subscriptions Kraken.sampleSubscriptions) |> Result.mapError (always Http.NetworkError))) |> Tuple.first
       --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleResubMessage)) |> Tuple.first
       --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleGiftedSubMessage)) |> Tuple.first
       --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleAnonGiftedSubMessage)) |> Tuple.first
@@ -180,9 +186,7 @@ update msg model =
       , if (Just user.id) /= model.userId then
           Cmd.batch
             [ Navigation.pushUrl m2.navigationKey (createPath m2)
-            , fetchHosts user.id
-            , fetchFollows user.id
-            , fetchStreamById user.id
+            , refresh (Just user.id)
             ]
         else if (Just user.login) /= model.login then
           Cmd.batch
@@ -218,6 +222,16 @@ update msg model =
       )
     Follows (Err error) ->
       let _ = Debug.log "follows fetch error" error in
+      (model, Cmd.none)
+    Subscriptions (Ok twitchSubscriptions) ->
+      let
+        subscribers = List.map mySubscription twitchSubscriptions
+      in
+      ( { model | subscribers = subscribers }
+      , Cmd.none
+      )
+    Subscriptions (Err error) ->
+      let _ = Debug.log "subscriptions fetch error" error in
       (model, Cmd.none)
     CurrentStream (Ok (stream::_)) ->
       let
@@ -391,6 +405,7 @@ refresh mUserId =
       Cmd.batch
         [ fetchHosts id
         , fetchFollows id
+        , fetchSubscriptions id
         , fetchStreamById id
         ]
     Nothing ->
@@ -442,21 +457,18 @@ mySub line =
         Chat.DisplayName name -> {sub | displayName = name}
         Chat.UserId id -> {sub | userId = id}
         Chat.MsgParamMonths count -> {sub | months = count}
-        Chat.MsgParamSubPlan plan ->
-          case plan of
-            "Prime" ->
-              {sub | points = 1}
-            "1000" ->
-              {sub | points = 1}
-            "2000" ->
-              {sub | points = 2}
-            "3000" ->
-              {sub | points = 3}
-            _ ->
-              {sub | points = 1}
+        Chat.MsgParamSubPlan plan -> {sub | points = planPoints plan}
         _ -> sub
     ) (Sub "" "" 0 0) line.tags
 
+planPoints : String -> Int
+planPoints plan =
+  case plan of
+    "Prime" -> 1
+    "1000" -> 1
+    "2000" -> 2
+    "3000" -> 3
+    _ -> 1
 
 fetchHostsUrl : String -> String
 fetchHostsUrl id =
@@ -492,6 +504,28 @@ fetchFollows id =
     , decoder = Helix.follows
     , tagger = Follows
     , url = (fetchFollowsUrl id)
+    }
+
+mySubscription : Kraken.Subscription -> Sub
+mySubscription sub =
+  { userId = sub.userId
+  , displayName = sub.userDisplayName
+  , months = 0
+  , points = planPoints sub.subPlan
+  }
+
+fetchSubscriptionsUrl : String -> String
+fetchSubscriptionsUrl id =
+  "https://api.twitch.tv/kraken/channels/" ++ id ++ "/subscriptions"
+
+fetchSubscriptions : String -> Cmd Msg
+fetchSubscriptions id =
+  Kraken.send <|
+    { clientId = TwitchId.clientId
+    , auth = Nothing
+    , decoder = Kraken.subscriptions
+    , tagger = Subscriptions
+    , url = (fetchSubscriptionsUrl id)
     }
 
 fetchUserByNameUrl : String -> String

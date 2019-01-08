@@ -146,6 +146,9 @@ view model =
               , model.currentFollows
                 |> List.map .fromName
                 |> displaySection model.windowHeight "Thanks for Following!"
+              , model.subscribers
+                |> List.map .displayName
+                |> displaySection model.windowHeight "Thanks for Subscribing!"
               ]
         ]
     ]
