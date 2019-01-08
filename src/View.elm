@@ -1,4 +1,4 @@
-module View exposing (Msg(..), Host, Raid, Cheer, Follow, document, view, creditsOff)
+module View exposing (Msg(..), Host, Raid, Cheer, Sub, Follow, document, view, creditsOff)
 
 import TwitchId
 
@@ -34,6 +34,13 @@ type alias Cheer =
   { userId : String
   , displayName : String
   , amount : Int
+  }
+
+type alias Sub =
+  { userId : String
+  , displayName : String
+  , months : Int
+  , tier : Int
   }
 
 type alias Follow =
@@ -122,17 +129,20 @@ view model =
                 (text "Thanks for watching!")
               , model.cheers
                 |> List.map .displayName
-                |> displaySection model.windowHeight "Thanks for the bits!"
+                |> displaySection model.windowHeight "Thanks for the Bits!"
+              , model.subs
+                |> List.map .displayName
+                |> displaySection model.windowHeight "Thanks for the Subs!"
               , model.raids
                 |> List.map .displayName
-                |> displaySection model.windowHeight "Thanks for raiding!"
+                |> displaySection model.windowHeight "Thanks for Raiding!"
               , model.hosts
                 |> notRaids model.raids
                 |> List.map .hostDisplayName
-                |> displaySection model.windowHeight "Thanks for hosting!"
+                |> displaySection model.windowHeight "Thanks for Hosting!"
               , model.currentFollows
                 |> List.map .fromName
-                |> displaySection model.windowHeight "Thanks for following!"
+                |> displaySection model.windowHeight "Thanks for Following!"
               ]
         ]
     ]

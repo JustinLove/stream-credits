@@ -3,7 +3,8 @@ module StreamCredits exposing (..)
 import ObsStudio
 import PortSocket
 import Twitch.Tmi.Chat as Chat
-import View exposing (Host, Raid, Cheer, Follow)
+--import Twitch.Tmi.ChatSamples as Chat
+import View exposing (Host, Raid, Cheer, Sub, Follow)
 
 import Browser
 import Browser.Dom as Dom
@@ -12,6 +13,7 @@ import Browser.Navigation as Navigation
 import Http
 import Json.Decode as Decode
 import Parser.Advanced as Parser
+import Platform.Sub
 import Task
 import Time
 import Twitch.Helix as Helix
@@ -61,6 +63,7 @@ type alias Model =
   , hosts : List Host
   , raids : List Raid
   , cheers : List Cheer
+  , subs : List Sub
   , follows : List Follow
   , currentFollows : List Follow
   , streamStart : Int
@@ -92,14 +95,16 @@ init flags location key =
       , hosts = []
       , raids = []
       , cheers = []
+      , subs = []
       , follows = []
       , currentFollows = []
       , streamStart = 0
       }
-      --|> update (SocketEvent 0 (PortSocket.Message "@badges=staff/1,bits/1000;bits=100;color=;display-name=dallas;emotes=;id=b34ccfc7-4977-403a-8a94-33c6bac34fb8;mod=0;room-id=1337;subscriber=0;tmi-sent-ts=1507246572675;turbo=1;user-id=1337;user-type=staff :ronni!ronni@ronni.tmi.twitch.tv PRIVMSG #dallas :cheer100\r\n"))
-      --|> Tuple.first
-      --|> update (SocketEvent 0 (PortSocket.Message "@badges=turbo/1;color=#9ACD32;display-name=MakingsOfAHero;emotes=;id=3d830f12-795c-447d-af3c-ea05e40fbddb;login=makingsofahero;mod=0;msg-id=raid;msg-param-displayName=MakingsOfAHero;msg-param-login=makingsofahero;msg-param-viewerCount=15;room-id=56379257;subscriber=0;system-msg=15\\sraiders\\sfrom\\sTestChannel\\shave\\sjoined\\n!;tmi-sent-ts=1507246572675;turbo=1;user-id=32472036;user-type= :tmi.twitch.tv USERNOTICE #othertestchannel\r\n"))
-      --|> Tuple.first
+      --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleResubMessage)) |> Tuple.first
+      --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleGiftedSubMessage)) |> Tuple.first
+      --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleAnonGiftedSubMessage)) |> Tuple.first
+      --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleBitsChatMessage)) |> Tuple.first
+      --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleRaidedMessage)) |> Tuple.first
     (m2, argCmds) = update (CurrentUrl location) initialModel
   in
   (m2, Cmd.batch 
@@ -297,6 +302,15 @@ chatResponse id line model =
         Chat.Raid -> 
           let raid = myRaid line in
           ( { model | raids = raid :: model.raids }, Cmd.none )
+        Chat.Resub -> 
+          let sub = mySub line in
+          ( { model | subs = sub :: model.subs }, Cmd.none )
+        Chat.SubGift -> 
+          let sub = mySub line in
+          ( { model | subs = sub :: model.subs }, Cmd.none )
+        Chat.AnonSubGift -> 
+          let sub = mySub line in
+          ( { model | subs = {sub | displayName = "Anonymous"} :: model.subs }, Cmd.none )
         _ -> 
           (model, Cmd.none)
     "001" -> (model, Cmd.none)
@@ -358,7 +372,7 @@ refresh mUserId =
     Nothing ->
       Cmd.none
 
-subscriptions : Model -> Sub Msg
+subscriptions : Model -> Platform.Sub.Sub Msg
 subscriptions model =
   Sub.batch
     [ Browser.Events.onResize (\w h -> WindowSize (w, h))
@@ -396,6 +410,29 @@ myCheer line =
         Chat.Bits amount -> {cheer | amount = amount}
         _ -> cheer
     ) (Cheer "" "" 0) line.tags
+
+mySub : Chat.Line -> Sub
+mySub line =
+  List.foldl (\tag sub ->
+      case tag of
+        Chat.DisplayName name -> {sub | displayName = name}
+        Chat.UserId id -> {sub | userId = id}
+        Chat.MsgParamMonths count -> {sub | months = count}
+        Chat.MsgParamSubPlan plan ->
+          case plan of
+            "Prime" ->
+              {sub | tier = 1}
+            "1000" ->
+              {sub | tier = 1}
+            "2000" ->
+              {sub | tier = 2}
+            "3000" ->
+              {sub | tier = 3}
+            _ ->
+              {sub | tier = 1}
+        _ -> sub
+    ) (Sub "" "" 0 0) line.tags
+
 
 fetchHostsUrl : String -> String
 fetchHostsUrl id =
