@@ -43,6 +43,7 @@ type Msg
   | Self (Result Http.Error (List Helix.User))
   | Follows (Result Http.Error (List Helix.Follow))
   | Subscriptions (Result Http.Error (List Kraken.Subscription))
+  | BitsLeaderboard (Result Http.Error (List Helix.BitsLeader))
   | CurrentStream (Result Http.Error (List Helix.Stream))
   | SocketEvent PortSocket.Id PortSocket.Event
 
@@ -70,6 +71,7 @@ type alias Model =
   , hosts : List Host
   , raids : List Raid
   , cheers : Dict String Cheer
+  , bitsLeaders : List Cheer
   , subs : Dict String Sub
   , subscribers : List Sub
   , follows : List Follow
@@ -105,6 +107,7 @@ init flags location key =
       , hosts = []
       , raids = []
       , cheers = Dict.empty
+      , bitsLeaders = []
       , subs = Dict.empty
       , subscribers = []
       , follows = []
@@ -112,6 +115,7 @@ init flags location key =
       , streamStart = 0
       }
       --|> update (Subscriptions ((Decode.decodeString Kraken.subscriptions Kraken.sampleSubscriptions) |> Result.mapError (always Http.NetworkError))) |> Tuple.first
+      |> update (BitsLeaderboard ((Decode.decodeString Helix.bitsLeaderboard Helix.sampleBitsLeaderboard) |> Result.mapError (always Http.NetworkError))) |> Tuple.first
       --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleResubMessage)) |> Tuple.first
       --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleGiftedSubMessage)) |> Tuple.first
       --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleAnonGiftedSubMessage)) |> Tuple.first
@@ -153,7 +157,7 @@ update msg model =
         }
       , Cmd.batch
         [ ( case (muserId, mlogin) of
-          (Just id, _) -> refresh muserId
+          (Just id, _) -> refresh mauth muserId
           (Nothing, Just login) -> fetchUserByName login
           (Nothing, Nothing) -> Cmd.none
           )
@@ -171,7 +175,7 @@ update msg model =
     Visibility visible ->
       ( {model | visibility = visible, timeElapsed = 0 }
       , if visible == Browser.Events.Visible then
-          refresh model.userId
+          refresh model.auth model.userId
         else
           Cmd.none
       )
@@ -194,7 +198,7 @@ update msg model =
       , if (Just user.id) /= model.userId then
           Cmd.batch
             [ Navigation.pushUrl m2.navigationKey (createPath m2)
-            , refresh (Just user.id)
+            , refresh (model.auth) (Just user.id)
             ]
         else if (Just user.login) /= model.login then
           Cmd.batch
@@ -254,6 +258,16 @@ update msg model =
       ( { model | subscribers = subscribers }
       , Cmd.none
       )
+    BitsLeaderboard (Err error) ->
+      let _ = Debug.log "bits leaderboard fetch error" error in
+      (model, Cmd.none)
+    BitsLeaderboard (Ok twitchBitsLeaderboard) ->
+      let
+        leaders = List.map myBitsLeader twitchBitsLeaderboard
+      in
+      ( { model | bitsLeaders = leaders }
+      , Cmd.none
+      )
     Subscriptions (Err error) ->
       let _ = Debug.log "subscriptions fetch error" error in
       (model, Cmd.none)
@@ -282,16 +296,6 @@ update msg model =
       (model, Cmd.none)
     SocketEvent id (PortSocket.Open url) ->
       let _ = Debug.log "websocket open" id in
-      Maybe.map2 (\auth login ->
-        ({model | ircConnection = Connected id}, Cmd.batch
-          -- order is reversed, because elm feels like it
-          [ PortSocket.send id ("NICK " ++ login)
-          , PortSocket.send id ("PASS oauth:" ++ auth)
-          ])
-        )
-        model.auth
-        model.authLogin
-      |> Maybe.withDefault
         ({model | ircConnection = Connected id}, PortSocket.send id ("NICK justinfan" ++ (String.fromInt (modBy 1000000 (Time.posixToMillis model.time)))))
     SocketEvent id (PortSocket.Close url) ->
       let _ = Debug.log "websocket closed" id in
@@ -432,14 +436,15 @@ reduce step msg (model, cmd) =
   in
     (m2, Cmd.batch [cmd, c2])
 
-refresh : Maybe String -> Cmd Msg
-refresh mUserId =
+refresh : Maybe String -> Maybe String -> Cmd Msg
+refresh mAuth mUserId =
   case mUserId of
     Just id ->
       Cmd.batch
         [ fetchHosts id
         , fetchFollows id
-        , fetchSubscriptions id
+        , fetchSubscriptions mAuth id
+        , fetchBitsLeaderboard mAuth
         , fetchStreamById id
         ]
     Nothing ->
@@ -483,6 +488,13 @@ myCheer line =
         Chat.Bits amount -> {cheer | amount = amount}
         _ -> cheer
     ) (Cheer "" "" 0) line.tags
+
+myBitsLeader : Helix.BitsLeader -> Cheer
+myBitsLeader leader =
+  { userId = leader.userId
+  , displayName = leader.userName
+  , amount = leader.score
+  }
 
 mySub : Chat.Line -> Sub
 mySub line =
@@ -552,15 +564,37 @@ fetchSubscriptionsUrl : String -> String
 fetchSubscriptionsUrl id =
   "https://api.twitch.tv/kraken/channels/" ++ id ++ "/subscriptions"
 
-fetchSubscriptions : String -> Cmd Msg
-fetchSubscriptions id =
-  Kraken.send <|
-    { clientId = TwitchId.clientId
-    , auth = Nothing
-    , decoder = Kraken.subscriptions
-    , tagger = Subscriptions
-    , url = (fetchSubscriptionsUrl id)
-    }
+fetchSubscriptions : Maybe String -> String -> Cmd Msg
+fetchSubscriptions mauth id =
+  case mauth of
+    Just _ ->
+      Kraken.send <|
+        { clientId = TwitchId.clientId
+        , auth = mauth
+        , decoder = Kraken.subscriptions
+        , tagger = Subscriptions
+        , url = (fetchSubscriptionsUrl id)
+        }
+    Nothing ->
+      Cmd.none
+
+fetchBitsLeaderboardUrl : String
+fetchBitsLeaderboardUrl =
+  "https://api.twitch.tv/helix/bits/leaderboard?period=week"
+
+fetchBitsLeaderboard : Maybe String -> Cmd Msg
+fetchBitsLeaderboard mauth =
+  case mauth of
+    Just _ ->
+      Helix.send <|
+        { clientId = TwitchId.clientId
+        , auth = mauth
+        , decoder = Helix.bitsLeaderboard
+        , tagger = BitsLeaderboard
+        , url = fetchBitsLeaderboardUrl
+        }
+    Nothing ->
+      Cmd.none
 
 fetchUserByNameUrl : String -> String
 fetchUserByNameUrl login =

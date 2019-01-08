@@ -134,6 +134,9 @@ view model =
                 |> Dict.values
                 |> List.map .displayName
                 |> displaySection model.windowHeight "Thanks for the Bits!"
+              , model.bitsLeaders
+                |> List.map .displayName
+                |> displaySection model.windowHeight "Weekly Bits Leaders"
               , model.subs
                 |> Dict.values
                 |> List.map .displayName
@@ -150,7 +153,7 @@ view model =
                 |> displaySection model.windowHeight "Thanks for Following!"
               , model.subscribers
                 |> List.map .displayName
-                |> displaySection model.windowHeight "Thanks for Subscribing!"
+                |> displaySection model.windowHeight "Subscribers"
               ]
         ]
     ]
@@ -228,7 +231,7 @@ authorizeUrl redirectUri =
       [ Url.string "client_id" TwitchId.clientId
       , Url.string "redirect_uri" redirectUri
       , Url.string "response_type" "token"
-      , Url.string "scope" "chat:read"
+      , Url.string "scope" "chat:read bits:read channel_subscriptions"
       ]
       |> Url.toQuery
       )
