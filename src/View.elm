@@ -105,7 +105,7 @@ view model =
               , centerY
               ]
               [ []
-                |> displaySection model.windowHeight "Thanks for watching!"
+                |> displaySection model.windowWidth model.windowHeight "Thanks for watching!"
               , el [ centerX ] <|
                 displayNameEntryBox model.login
               , el [ centerX ] <|
@@ -118,7 +118,7 @@ view model =
               , moveDown ((toFloat model.windowHeight) + leadingGap - (model.timeElapsed * (scrollSpeed model.windowHeight)))
               , htmlAttribute <| Html.Attributes.class "credits"
               ]
-              (applySections (displaySection model.windowHeight) model)
+              (applySections (displaySection model.windowWidth model.windowHeight) model)
         ]
     ]
 
@@ -159,23 +159,71 @@ notRaids raids =
       |> List.isEmpty
   )
 
-displaySection : Int -> String -> List String -> Element Msg
-displaySection height title items =
+displaySection : Int -> Int -> String -> List String -> Element Msg
+displaySection windowWidth windowHeight title items =
   if List.isEmpty items then
     none
   else
-    column [ spacing (headingSpacing height), width fill]
+    let
+      (_, columns) = rowsAndColumns windowWidth windowHeight items
+    in
+    column [ spacing (columnSpacing windowHeight), width fill]
       [ el
         [ Region.heading 1
-        , Font.size (headingFontSize height)
+        , Font.size (headingFontSize windowHeight)
         , Font.bold
         , centerX
         ]
         ( text title )
-      , items
-        |> List.map displayItem
-        |> column [ centerX, spacing (creditSpacing height) ]
+      , row
+        [ centerX
+        , spacing (headingSpacing windowHeight)
+        ]
+        (items
+          |> List.map displayItem
+          |> splitList columns
+          |> List.map (column [ centerX, alignTop, spacing (creditSpacing windowHeight)])
+        )
       ]
+
+measureSection : Int -> Int -> String -> List String -> Int
+measureSection windowWidth windowHeight _ items =
+  let
+    (rows, _) = rowsAndColumns windowWidth windowHeight items
+  in
+  maximumSectionSize windowHeight rows
+
+maximumSectionSize : Int -> Int -> Int
+maximumSectionSize height count =
+  headingFontSize height
+  + headingSpacing height
+  + count * creditFontSize height
+  + (count - 1) * creditSpacing height
+
+rowsAndColumns : Int -> Int -> List String -> (Int, Int)
+rowsAndColumns windowWidth windowHeight items =
+  let
+    count = List.length items
+    sectionHeight = maximumSectionSize windowHeight count
+    widest = items
+      |> List.map String.length
+      |> List.maximum
+      |> Maybe.withDefault 1
+    baseWidest = widest // 2 * (creditFontSize windowHeight) + (columnSpacing windowHeight)
+    columns = min ((windowWidth - (margins windowHeight))//baseWidest) (sectionHeight//windowHeight)
+    rows = count // columns
+  in
+    (rows, columns)
+
+splitList : Int -> List a -> List (List a)
+splitList parts list =
+  if parts < 2 then
+    [list]
+  else
+    let
+      chop = ((List.length list)//parts)
+    in
+      (List.take chop list) :: (splitList (parts-1) (List.drop chop list))
 
 displayItem : String -> Element Msg
 displayItem item =
@@ -270,17 +318,10 @@ creditsOff model =
 --creditSize : Model -> Int
 creditSize model =
   leadingGap
-  + (applySections (measureSection model.windowHeight) model
+  + (applySections (measureSection model.windowWidth model.windowHeight) model
       |> List.foldl (+) 0
     )
   + trailingGap
-
-measureSection : Int -> String -> List String -> Int
-measureSection height _ list =
-  headingFontSize height
-  + headingSpacing height
-  + (List.length list) * creditFontSize height
-  + ((List.length list) - 1) * creditSpacing height
 
 scrollSpeed : Int -> Float
 scrollSpeed height = ((toFloat height)/10)/1000
@@ -290,6 +331,8 @@ creditSpacing height = scaled height -5
 headingFontSize height = scaled height 4
 headingSpacing height = scaled height 1
 sectionSpacing height = scaled height 6
+columnSpacing height = scaled height 1
+margins height = scaled height 12
 leadingGap = 60
 trailingGap = 60
 
