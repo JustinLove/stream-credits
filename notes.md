@@ -1,3 +1,2 @@
 - reconnection
 - subscriptions auth
-- sorting/sizing

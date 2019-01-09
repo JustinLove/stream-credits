@@ -127,29 +127,48 @@ applySections fun model =
     |> fun "Thanks for watching!"
   , model.cheers
     |> Dict.values
+    |> List.sortBy (.amount>>negate)
     |> List.map .displayName
     |> fun "Thanks for the Bits!"
   , model.bitsLeaders
+    |> List.sortBy (.amount>>negate)
     |> List.map .displayName
     |> fun "Weekly Bits Leaders"
   , model.subs
     |> Dict.values
+    |> List.sortWith subRank
     |> List.map .displayName
     |> fun "Thanks for the Subs!"
   , model.raids
+    |> List.sortBy (.viewerCount>>negate)
     |> List.map .displayName
     |> fun "Thanks for Raiding!"
   , model.hosts
     |> notRaids model.raids
     |> List.map .hostDisplayName
+    |> List.sort
     |> fun "Thanks for Hosting!"
   , model.currentFollows
     |> List.map .fromName
     |> fun "Thanks for Following!"
   , model.subscribers
+    |> List.sortWith subRank
     |> List.map .displayName
     |> fun "Subscribers"
   ]
+
+subRank : Sub -> Sub -> Order
+subRank a b =
+  if b.points < a.points then
+    LT
+  else if b.points > a.points then
+    GT
+  else if b.months < a.months then
+    LT
+  else if b.months > a.months then
+    GT
+  else
+    compare a.displayName b.displayName
 
 notRaids : List Raid -> List Host -> List Host
 notRaids raids = 
