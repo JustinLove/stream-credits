@@ -104,13 +104,8 @@ view model =
               , spacing (headingSpacing model.windowHeight)
               , centerY
               ]
-              [ el
-                [ Region.heading 1
-                , Font.size (headingFontSize model.windowHeight)
-                , Font.bold
-                , centerX
-                ]
-                (text "Thanks for watching!")
+              [ []
+                |> displaySection model.windowHeight "Thanks for watching!"
               , el [ centerX ] <|
                 displayNameEntryBox model.login
               , el [ centerX ] <|
@@ -123,40 +118,38 @@ view model =
               , moveDown ((toFloat model.windowHeight) + leadingGap - (model.timeElapsed * (scrollSpeed model.windowHeight)))
               , htmlAttribute <| Html.Attributes.class "credits"
               ]
-              [ el
-                [ Region.heading 1
-                , Font.size (headingFontSize model.windowHeight)
-                , Font.bold
-                , centerX
-                ]
-                (text "Thanks for watching!")
-              , model.cheers
-                |> Dict.values
-                |> List.map .displayName
-                |> displaySection model.windowHeight "Thanks for the Bits!"
-              , model.bitsLeaders
-                |> List.map .displayName
-                |> displaySection model.windowHeight "Weekly Bits Leaders"
-              , model.subs
-                |> Dict.values
-                |> List.map .displayName
-                |> displaySection model.windowHeight "Thanks for the Subs!"
-              , model.raids
-                |> List.map .displayName
-                |> displaySection model.windowHeight "Thanks for Raiding!"
-              , model.hosts
-                |> notRaids model.raids
-                |> List.map .hostDisplayName
-                |> displaySection model.windowHeight "Thanks for Hosting!"
-              , model.currentFollows
-                |> List.map .fromName
-                |> displaySection model.windowHeight "Thanks for Following!"
-              , model.subscribers
-                |> List.map .displayName
-                |> displaySection model.windowHeight "Subscribers"
-              ]
+              (applySections (displaySection model.windowHeight) model)
         ]
     ]
+
+applySections fun model =
+  [ []
+    |> fun "Thanks for watching!"
+  , model.cheers
+    |> Dict.values
+    |> List.map .displayName
+    |> fun "Thanks for the Bits!"
+  , model.bitsLeaders
+    |> List.map .displayName
+    |> fun "Weekly Bits Leaders"
+  , model.subs
+    |> Dict.values
+    |> List.map .displayName
+    |> fun "Thanks for the Subs!"
+  , model.raids
+    |> List.map .displayName
+    |> fun "Thanks for Raiding!"
+  , model.hosts
+    |> notRaids model.raids
+    |> List.map .hostDisplayName
+    |> fun "Thanks for Hosting!"
+  , model.currentFollows
+    |> List.map .fromName
+    |> fun "Thanks for Following!"
+  , model.subscribers
+    |> List.map .displayName
+    |> fun "Subscribers"
+  ]
 
 notRaids : List Raid -> List Host -> List Host
 notRaids raids = 
@@ -277,16 +270,17 @@ creditsOff model =
 --creditSize : Model -> Int
 creditSize model =
   leadingGap
-  + headingFontSize model.windowHeight
-  + headingSpacing model.windowHeight
-  + (List.length model.hosts) * creditFontSize model.windowHeight
-  + ((List.length model.hosts) - 1) * creditSpacing model.windowHeight
-  + sectionSpacing model.windowHeight
-  + headingFontSize model.windowHeight
-  + headingSpacing model.windowHeight
-  + (List.length model.currentFollows) * creditFontSize model.windowHeight
-  + ((List.length model.currentFollows) - 1) * creditSpacing model.windowHeight
+  + (applySections (measureSection model.windowHeight) model
+      |> List.foldl (+) 0
+    )
   + trailingGap
+
+measureSection : Int -> String -> List String -> Int
+measureSection height _ list =
+  headingFontSize height
+  + headingSpacing height
+  + (List.length list) * creditFontSize height
+  + ((List.length list) - 1) * creditSpacing height
 
 scrollSpeed : Int -> Float
 scrollSpeed height = ((toFloat height)/10)/1000
