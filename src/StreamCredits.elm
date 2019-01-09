@@ -562,7 +562,7 @@ mySubscription sub =
 
 fetchSubscriptionsUrl : String -> String
 fetchSubscriptionsUrl id =
-  "https://api.twitch.tv/kraken/channels/" ++ id ++ "/subscriptions"
+  "https://api.twitch.tv/kraken/channels/" ++ id ++ "/subscriptions?limit=100"
 
 fetchSubscriptions : Maybe String -> String -> Cmd Msg
 fetchSubscriptions mauth id =

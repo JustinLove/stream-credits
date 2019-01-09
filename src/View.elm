@@ -153,6 +153,7 @@ applySections fun model =
     |> fun "Thanks for Following!"
   , model.subscribers
     |> List.sortWith subRank
+    |> List.filter (\sub -> (Just sub.userId) /= model.userId)
     |> List.map .displayName
     |> fun "Subscribers"
   ]

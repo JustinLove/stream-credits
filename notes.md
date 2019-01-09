@@ -1,2 +1,2 @@
 - reconnection
-- subscriptions auth
+- Kraken Pagination
