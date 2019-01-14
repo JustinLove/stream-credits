@@ -37,7 +37,7 @@ var command = function(message) {
       ws.close()
       break
     case 'send':
-      send(ws, message.data)
+      ws.send(message.data)
       break
   }
 }
@@ -72,15 +72,6 @@ var connect = function(address) {
     //console.log('js message', message)
     app.ports.webSocketReceive.send({kind: "message", id: ws.id, message: message.data})
   }
-}
-
-var send = function(id, data) {
-  connections.forEach(function(ws) {
-    if (ws.id == id) {
-      //console.log(id, data)
-      ws.send(data)
-    }
-  })
 }
 
 if (app.ports.webSocketCommand) {
