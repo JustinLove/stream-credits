@@ -301,7 +301,6 @@ urlForRedirect : Url -> String
 urlForRedirect url =
   {url | query = Nothing, fragment = Nothing } |> Url.toString
 
-
 targetValue : Json.Decode.Decoder a -> (a -> Msg) -> Json.Decode.Decoder Msg
 targetValue decoder tagger =
   Json.Decode.map tagger

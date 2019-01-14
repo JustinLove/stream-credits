@@ -193,6 +193,16 @@ update msg model =
           { model
           | login = Just user.login
           , userId = Just user.id
+          , cheers =
+              if (Just user.id) /= model.userId then
+                Dict.empty
+              else
+                model.cheers
+          , raids =
+              if (Just user.id) /= model.userId then
+                []
+              else
+                model.raids
           }
       in
       ( m2

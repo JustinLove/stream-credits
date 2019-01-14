@@ -1,3 +1,2 @@
-- preserve channel when logging in
-- reset event logs when changing channels
+- preserve channel when logging in - parameters not allowed in oauth redirect urls. Could maybe use local storage.
 - reconnection
