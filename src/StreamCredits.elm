@@ -1,6 +1,7 @@
 module StreamCredits exposing (..)
 
 import ObsStudio
+import Pagination as Kraken
 import PortSocket
 import Twitch.Tmi.Chat as Chat
 --import Twitch.Tmi.ChatSamples as Chat
@@ -42,7 +43,7 @@ type Msg
   | User (Result Http.Error (List Helix.User))
   | Self (Result Http.Error (List Helix.User))
   | Follows (Result Http.Error (List Helix.Follow))
-  | Subscriptions (Result Http.Error (List Kraken.Subscription))
+  | Subscriptions (Result Http.Error (Kraken.Paginated (List Kraken.Subscription)))
   | BitsLeaderboard (Result Http.Error (List Helix.BitsLeader))
   | CurrentStream (Result Http.Error (List Helix.Stream))
   | SocketEvent PortSocket.Id PortSocket.Event
@@ -251,13 +252,26 @@ update msg model =
     Follows (Err error) ->
       let _ = Debug.log "follows fetch error" error in
       (model, Cmd.none)
-    Subscriptions (Ok twitchSubscriptions) ->
+    Subscriptions (Ok (Kraken.Paginated offset total twitchSubscriptions)) ->
       let
         subscribers = List.map mySubscription twitchSubscriptions
+        records = List.length subscribers
+        fetched = offset + records
       in
-      ( { model | subscribers = subscribers }
-      , Cmd.none
+      ( if offset == 0 then
+          { model | subscribers = subscribers }
+        else
+          { model | subscribers = List.append model.subscribers subscribers }
+      , if fetched < total && records > 0 then
+          case model.userId of
+            Just id -> fetchSubscriptions model.auth id fetched
+            Nothing -> Cmd.none
+        else
+          Cmd.none
       )
+    Subscriptions (Err error) ->
+      let _ = Debug.log "subscriptions fetch error" error in
+      (model, Cmd.none)
     BitsLeaderboard (Err error) ->
       let _ = Debug.log "bits leaderboard fetch error" error in
       (model, Cmd.none)
@@ -268,9 +282,6 @@ update msg model =
       ( { model | bitsLeaders = leaders }
       , Cmd.none
       )
-    Subscriptions (Err error) ->
-      let _ = Debug.log "subscriptions fetch error" error in
-      (model, Cmd.none)
     CurrentStream (Ok (stream::_)) ->
       let
         start = (Time.posixToMillis stream.startedAt)
@@ -443,7 +454,7 @@ refresh mAuth mUserId =
       Cmd.batch
         [ fetchHosts id
         , fetchFollows id
-        , fetchSubscriptions mAuth id
+        , fetchSubscriptions mAuth id 0
         , fetchBitsLeaderboard mAuth
         , fetchStreamById id
         ]
@@ -560,20 +571,20 @@ mySubscription sub =
   , points = planPoints sub.subPlan
   }
 
-fetchSubscriptionsUrl : String -> String
-fetchSubscriptionsUrl id =
-  "https://api.twitch.tv/kraken/channels/" ++ id ++ "/subscriptions?limit=100"
+fetchSubscriptionsUrl : String -> Int -> String
+fetchSubscriptionsUrl id offset =
+  "https://api.twitch.tv/kraken/channels/" ++ id ++ "/subscriptions?limit=100&offset=" ++ (String.fromInt offset)
 
-fetchSubscriptions : Maybe String -> String -> Cmd Msg
-fetchSubscriptions mauth id =
+fetchSubscriptions : Maybe String -> String -> Int -> Cmd Msg
+fetchSubscriptions mauth id offset =
   case mauth of
     Just _ ->
       Kraken.send <|
         { clientId = TwitchId.clientId
         , auth = mauth
-        , decoder = Kraken.subscriptions
+        , decoder = Kraken.paginated offset Kraken.subscriptions
         , tagger = Subscriptions
-        , url = (fetchSubscriptionsUrl id)
+        , url = (fetchSubscriptionsUrl id offset)
         }
     Nothing ->
       Cmd.none
