@@ -12,53 +12,79 @@
 </body>
 
 <script type="text/javascript">
+"use strict";
 var app = Elm.StreamCredits.init()
+
+var command = function(message) {
+  //console.log(message)
+  var ws
+  if ('id' in message) {
+    connections.forEach(function(socket) {
+      if (socket.id == message.id) {
+        ws = socket
+      }
+    })
+    if (!ws) {
+      app.ports.webSocketReceive.send({kind: "error", id: message.id, error: "socket id not found"})
+      return
+    }
+  }
+  switch (message.kind) {
+    case 'connect':
+      connect(message.address)
+      break
+    case 'close':
+      ws.close()
+      break
+    case 'send':
+      send(ws, message.data)
+      break
+  }
+}
 
 var connections = []
 var nextid = 0
 
-if (app.ports.webSocketConnect) {
-  app.ports.webSocketConnect.subscribe(function(address) {
-    var ws = new WebSocket(address)
+var connect = function(address) {
+  var ws = new WebSocket(address)
 
-    ws.id = nextid++
-    connections.push(ws)
+  ws.id = nextid++
+  connections.push(ws)
 
-    ws.onerror = function(error) {
-      console.log('js websocket error', arguments)
-      app.ports.webSocketReceive.send({kind: "error", id: ws.id, error: error})
-    }
+  ws.onerror = function(error) {
+    console.log('js websocket error', arguments)
+    app.ports.webSocketReceive.send({kind: "error", id: ws.id, error: error})
+  }
 
-    ws.onopen = function() {
-      //console.log('js websocket opened')
-      app.ports.webSocketReceive.send({kind: "open", id: ws.id, url: address})
-    }
+  ws.onopen = function() {
+    //console.log('js websocket opened')
+    app.ports.webSocketReceive.send({kind: "open", id: ws.id, url: address})
+  }
 
-    ws.onclose = function() {
-      //console.log('js websocket closed')
-      app.ports.webSocketReceive.send({kind: "close", id: ws.id, url: address})
-      var index = connections.indexOf(ws)
-      if (index > -1) connections.splice(index, 1)
-    }
+  ws.onclose = function() {
+    console.log('js websocket closed')
+    app.ports.webSocketReceive.send({kind: "close", id: ws.id, url: address})
+    var index = connections.indexOf(ws)
+    if (index > -1) connections.splice(index, 1)
+  }
 
-    ws.onmessage = function(message) {
-      //console.log('js message', message)
-      app.ports.webSocketReceive.send({kind: "message", id: ws.id, message: message.data})
+  ws.onmessage = function(message) {
+    //console.log('js message', message)
+    app.ports.webSocketReceive.send({kind: "message", id: ws.id, message: message.data})
+  }
+}
+
+var send = function(id, data) {
+  connections.forEach(function(ws) {
+    if (ws.id == id) {
+      //console.log(id, data)
+      ws.send(data)
     }
   })
 }
 
-if (app.ports.webSocketSend) {
-  app.ports.webSocketSend.subscribe(function(args) {
-    var id = args[0]
-    var data = args[1]
-    connections.forEach(function(ws) {
-      if (ws.id == id) {
-        //console.log(id, data)
-        ws.send(data)
-      }
-    })
-  })
+if (app.ports.webSocketCommand) {
+  app.ports.webSocketCommand.subscribe(command)
 }
 
 if (window.obsstudio

@@ -1,14 +1,32 @@
-port module PortSocket exposing (Id, Event(..), connect, send, receive)
+port module PortSocket exposing (Id, Event(..), connect, close, send, receive)
 
 import Json.Decode exposing (..)
-import Json.Encode
+import Json.Encode as Encode
 
 connect : String -> Cmd msg
-connect = webSocketConnect
+connect address =
+  Encode.object
+    [ ("kind", Encode.string "connect")
+    , ("address", Encode.string address)
+    ]
+    |> webSocketCommand
+
+close : Int -> Cmd msg
+close id =
+  Encode.object
+    [ ("kind", Encode.string "close")
+    , ("id", Encode.int id)
+    ]
+    |> webSocketCommand
 
 send : Id -> String -> Cmd msg
 send id data =
-  webSocketSend (id, data)
+  Encode.object
+    [ ("kind", Encode.string "send")
+    , ("id", Encode.int id)
+    , ("data", Encode.string data)
+    ]
+    |> webSocketCommand
 
 receive : (Id -> Event -> msg) -> Sub msg
 receive tagger =
@@ -18,7 +36,7 @@ decodeReceive : Value -> (Id, Event)
 decodeReceive thing =
   decodeValue idEvent thing
     |> Result.mapError (Debug.log "websocket decode error")
-    |> Result.withDefault (0, Error Json.Encode.null)
+    |> Result.withDefault (0, Error Encode.null)
 
 type alias Id = Int
 
@@ -43,9 +61,8 @@ event =
         "open" -> map Open (field "url" string)
         "close" -> map Close (field "url" string)
         "message" -> map Message (field "message" string)
-        _ -> succeed (Error Json.Encode.null)
+        _ -> succeed (Error Encode.null)
     )
 
-port webSocketConnect : String -> Cmd msg
-port webSocketSend : (Id, String) -> Cmd msg
+port webSocketCommand : Value -> Cmd msg
 port webSocketReceive : (Value -> msg) -> Sub msg
