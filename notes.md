@@ -1,4 +1,3 @@
-- reconnection
-- reduce debug logging
 - preserve channel when logging in
 - reset event logs when changing channels
+- reconnection

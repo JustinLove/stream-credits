@@ -312,17 +312,26 @@ update msg model =
       let _ = Debug.log "websocket closed" id in
       ({model | ircConnection = Disconnected}, Cmd.none)
     SocketEvent id (PortSocket.Message message) ->
-      let _ = Debug.log "websocket message" message in
+      --let _ = Debug.log "websocket message" message in
       case (Parser.run Chat.message message) of
         Ok lines ->
-          List.foldl (reduce (chatResponse id)) (model, Cmd.none) lines
+          List.foldl (reduce (chatResponse id message)) (model, Cmd.none) lines
         Err err ->
-          let _ = Debug.log "message parse failed" err in
+          let _ = Debug.log message err in
           (model, Cmd.none)
 
-chatResponse : PortSocket.Id -> Chat.Line -> Model -> (Model, Cmd Msg)
-chatResponse id line model =
+chatResponse : PortSocket.Id -> String -> Chat.Line -> Model -> (Model, Cmd Msg)
+chatResponse id message line model =
+  let
+    _ = line.tags
+      |> List.map (\tag -> case tag of 
+        Chat.UnknownTag _ _ ->
+          Debug.log message tag
+        _ -> tag
+      )
+  in
   case line.command of
+    "CAP" -> (model, Cmd.none)
     "JOIN" ->
       let
           user = line.prefix
@@ -359,6 +368,7 @@ chatResponse id line model =
         , Cmd.none )
       else
         (model, Cmd.none)
+    "ROOMSTATE" -> (model, Cmd.none)
     "USERNOTICE" ->
       let _ = Debug.log "usernotice" line in
       let
@@ -383,12 +393,19 @@ chatResponse id line model =
         Chat.AnonSubGift -> 
           let sub = mySub line in
           ( combineSubs {sub | displayName = "anonymous"} model, Cmd.none )
+        Chat.UnknownNotice name -> 
+          let _ = Debug.log "unknown notice" name in
+          (model, Cmd.none)
         _ -> 
           (model, Cmd.none)
     "001" -> (model, Cmd.none)
     "002" -> (model, Cmd.none)
     "003" -> (model, Cmd.none)
     "004" -> (model, Cmd.none)
+    "353" -> (model, Cmd.none) --names list
+    "366" -> -- end of names list
+      let _ = Debug.log "joined room" (List.head (List.drop 1 line.params)) in
+      (model, Cmd.none)
     "375" -> (model, Cmd.none)
     "372" -> (model, Cmd.none)
     "376" -> 
@@ -400,7 +417,7 @@ chatResponse id line model =
         ]
       )
     _ ->
-      let _ = Debug.log "parse" line in
+      let _ = Debug.log message line in
       (model, Cmd.none)
 
 combineSubs : Sub -> Model -> Model
