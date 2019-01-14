@@ -38,3 +38,6 @@ sampleHostNoticeMessage = "@msg-id=host_on :tmi.twitch.tv NOTICE #wondible :Now 
 
 sampleHostTargetMessage = ":tmi.twitch.tv HOSTTARGET #wondible :zermisttv 3\r\n"
 
+sampleHostTargetOffMessage = ":tmi.twitch.tv HOSTTARGET #wondible :- 0\r\n"
+
+sampleHostTargetWentOfflineMessasge = "@msg-id=host_target_went_offline :tmi.twitch.tv NOTICE #wondible :gman8d has gone offline. Exiting host mode.\r\n"
