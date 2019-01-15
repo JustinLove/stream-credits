@@ -362,6 +362,9 @@ chatResponse id message line model =
   in
   case line.command of
     "CAP" -> (model, Cmd.none)
+    "HOSTTARGET" ->
+      let _ = Debug.log "hosttarget" line in
+      (model, Cmd.none)
     "JOIN" ->
       let
           user = line.prefix
