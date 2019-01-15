@@ -46,14 +46,22 @@ var connections = []
 var nextid = 0
 
 var connect = function(address) {
-  var ws = new WebSocket(address)
+  var id = nextid++
+  var ws
+  try {
+    ws = new WebSocket(address)
+  } catch (e) {
+    console.log(e)
+    app.ports.webSocketReceive.send({kind: "error", id: id, error: e})
+    return
+  }
 
-  ws.id = nextid++
+  ws.id = id
   connections.push(ws)
 
-  ws.onerror = function(error) {
-    console.log('js websocket error', arguments)
-    app.ports.webSocketReceive.send({kind: "error", id: ws.id, error: error})
+  ws.onerror = function(event) {
+    console.log('js websocket error')
+    app.ports.webSocketReceive.send({kind: "error", id: ws.id, error: event})
   }
 
   ws.onopen = function() {

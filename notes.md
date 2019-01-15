@@ -1,2 +1,3 @@
 - preserve channel when logging in - parameters not allowed in oauth redirect urls. Could maybe use local storage.
-- reconnection
+- other caps to try and get hosts
+- reconnection - punting on connect-close, need an example

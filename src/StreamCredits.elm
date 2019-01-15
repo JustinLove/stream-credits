@@ -17,7 +17,7 @@ import Json.Decode as Decode
 import Parser.Advanced as Parser
 import Platform.Sub
 import Task
-import Time
+import Time exposing (Posix)
 import Twitch.Helix as Helix
 import Twitch.Helix.Decode as Helix
 import Twitch.Kraken as Kraken
@@ -35,7 +35,7 @@ type Msg
   = UI (View.Msg)
   | CurrentUrl Url
   | Navigate Browser.UrlRequest
-  | CurrentTime Time.Posix
+  | CurrentTime Posix
   | WindowSize (Int, Int)
   | Visibility Browser.Events.Visibility
   | FrameStep Float
@@ -47,10 +47,11 @@ type Msg
   | BitsLeaderboard (Result Http.Error (List Helix.BitsLeader))
   | CurrentStream (Result Http.Error (List Helix.Stream))
   | SocketEvent PortSocket.Id PortSocket.Event
+  | Reconnect Posix
 
 type ConnectionStatus
-  = Disconnected
-  | Connecting String
+  = Disconnected Float
+  | Connecting String Float
   | Connected PortSocket.Id
   | LoggedIn PortSocket.Id String
   | Joining PortSocket.Id String String
@@ -59,7 +60,7 @@ type ConnectionStatus
 type alias Model =
   { location : Url
   , navigationKey : Navigation.Key
-  , time : Time.Posix
+  , time : Posix
   , windowWidth : Int
   , windowHeight : Int
   , visibility : Browser.Events.Visibility
@@ -104,7 +105,7 @@ init flags location key =
       , userId = Nothing
       , auth = Nothing
       , authLogin = Nothing
-      , ircConnection = Disconnected
+      , ircConnection = Disconnected 1000
       , hosts = []
       , raids = []
       , cheers = Dict.empty
@@ -320,7 +321,12 @@ update msg model =
         ({model | ircConnection = Connected id}, PortSocket.send id ("NICK justinfan" ++ (String.fromInt (modBy 1000000 (Time.posixToMillis model.time)))))
     SocketEvent id (PortSocket.Close url) ->
       let _ = Debug.log "websocket closed" id in
-      ({model | ircConnection = Disconnected}, Cmd.none)
+      case model.ircConnection of
+        Connecting _ timeout ->
+          ({model | ircConnection = Disconnected timeout}, Cmd.none)
+
+        _ ->
+          ({model | ircConnection = Disconnected 1000}, Cmd.none)
     SocketEvent id (PortSocket.Message message) ->
       --let _ = Debug.log "websocket message" message in
       case (Parser.run Chat.message message) of
@@ -329,6 +335,20 @@ update msg model =
         Err err ->
           let _ = Debug.log message err in
           (model, Cmd.none)
+    Reconnect time ->
+      case model.ircConnection of
+        Disconnected timeout ->
+          ( {model | ircConnection = Connecting twitchIrc (timeout*2)}
+          , PortSocket.connect twitchIrc
+          )
+        Connecting url timeout ->
+          ( {model | ircConnection = Connecting url (timeout*2)}
+          , PortSocket.connect url
+          )
+        _ ->
+          ( {model | ircConnection = Connecting twitchIrc 1000}
+          , PortSocket.connect twitchIrc
+          )
 
 chatResponse : PortSocket.Id -> String -> Chat.Line -> Model -> (Model, Cmd Msg)
 chatResponse id message line model =
@@ -448,10 +468,6 @@ combineSubs sub model =
 chatConnectionUpdate : Model -> (Model, Cmd Msg)
 chatConnectionUpdate model =
   case (model.ircConnection, model.login) of
-    (Disconnected, Just channel) ->
-      ( {model | ircConnection = Connecting twitchIrc}
-      , PortSocket.connect twitchIrc
-      )
     (LoggedIn id login, Just channel) ->
       ( {model | ircConnection = Joining id login channel}
       , PortSocket.send id ("JOIN #" ++ channel)
@@ -499,6 +515,10 @@ subscriptions model =
     , Browser.Events.onVisibilityChange Visibility
     , ObsStudio.onVisibilityChange Visibility
     , PortSocket.receive SocketEvent
+    , case (model.ircConnection, model.login) of
+        (Disconnected timeout, Just _) -> Time.every timeout Reconnect
+        (Connecting _ timeout, Just _) -> Time.every timeout Reconnect
+        _ -> Sub.none
     ]
 
 myHost : Tmi.Host -> Host
