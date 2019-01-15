@@ -321,7 +321,11 @@ displayFooter model =
       { url = "https://twitch.tv/wondible"
       , label = row [] [ icon "twitch", text "wondible" ]
       }
-    , displayLogin model
+    , case model.auth of
+      Just _ ->
+        displayLogin model
+      Nothing ->
+        none
     ]
 
 icon : String -> Element msg

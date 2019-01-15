@@ -1,3 +1,1 @@
-- preserve channel when logging in - parameters not allowed in oauth redirect urls. Could maybe use local storage.
-- other caps to try and get hosts
-- reconnection - punting on connect-close, need an example
+- other caps to try and get hosts - test HOSTTARGET first

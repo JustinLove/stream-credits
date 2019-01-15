@@ -232,9 +232,7 @@ update msg model =
           | authLogin = Just user.login
           }
       in
-      ( m2
-      , Cmd.none
-      )
+        update (User (Ok [user])) m2
     Self (Ok _) ->
       let _ = Debug.log "self lookup did not find a user" "" in
       (model, Cmd.none)
