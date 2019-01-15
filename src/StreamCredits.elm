@@ -50,7 +50,7 @@ type Msg
   | Reconnect Posix
 
 type ConnectionStatus
-  = Disconnected Float
+  = Disconnected
   | Connecting String Float
   | Connected PortSocket.Id
   | LoggedIn PortSocket.Id String
@@ -105,7 +105,7 @@ init flags location key =
       , userId = Nothing
       , auth = Nothing
       , authLogin = Nothing
-      , ircConnection = Disconnected 1000
+      , ircConnection = Disconnected
       , hosts = []
       , raids = []
       , cheers = Dict.empty
@@ -322,11 +322,14 @@ update msg model =
     SocketEvent id (PortSocket.Close url) ->
       let _ = Debug.log "websocket closed" id in
       case model.ircConnection of
+        Disconnected ->
+          (model, Cmd.none)
         Connecting _ timeout ->
-          ({model | ircConnection = Disconnected timeout}, Cmd.none)
-
+          (model, Cmd.none)
         _ ->
-          ({model | ircConnection = Disconnected 1000}, Cmd.none)
+          ( {model | ircConnection = Connecting twitchIrc 1000}
+          , Cmd.none
+          )
     SocketEvent id (PortSocket.Message message) ->
       --let _ = Debug.log "websocket message" message in
       case (Parser.run Chat.message message) of
@@ -336,19 +339,13 @@ update msg model =
           let _ = Debug.log message err in
           (model, Cmd.none)
     Reconnect time ->
-      case model.ircConnection of
-        Disconnected timeout ->
-          ( {model | ircConnection = Connecting twitchIrc (timeout*2)}
-          , PortSocket.connect twitchIrc
-          )
+      case Debug.log "reconnect" model.ircConnection of
         Connecting url timeout ->
           ( {model | ircConnection = Connecting url (timeout*2)}
           , PortSocket.connect url
           )
         _ ->
-          ( {model | ircConnection = Connecting twitchIrc 1000}
-          , PortSocket.connect twitchIrc
-          )
+          (model, Cmd.none)
 
 chatResponse : PortSocket.Id -> String -> Chat.Line -> Model -> (Model, Cmd Msg)
 chatResponse id message line model =
@@ -471,17 +468,21 @@ combineSubs sub model =
 chatConnectionUpdate : Model -> (Model, Cmd Msg)
 chatConnectionUpdate model =
   case (model.ircConnection, model.login) of
+    (Disconnected, Just _) ->
+      ( {model | ircConnection = Connecting twitchIrc 1000}
+      , Cmd.none
+      )
     (LoggedIn id login, Just channel) ->
       ( {model | ircConnection = Joining id login channel}
       , PortSocket.send id ("JOIN #" ++ channel)
       )
     (Joining id login channel, Nothing) ->
-      ( model
-      , PortSocket.send id ("PART #" ++ channel)
+      ( {model | ircConnection = Disconnected}
+      , PortSocket.close id
       )
     (Joined id login channel, Nothing) ->
-      ( model
-      , PortSocket.send id ("PART " ++ channel)
+      ( {model | ircConnection = Disconnected}
+      , PortSocket.close id
       )
     (_, _) ->
       (model, Cmd.none)
@@ -518,9 +519,8 @@ subscriptions model =
     , Browser.Events.onVisibilityChange Visibility
     , ObsStudio.onVisibilityChange Visibility
     , PortSocket.receive SocketEvent
-    , case (model.ircConnection, model.login) of
-        (Disconnected timeout, Just _) -> Time.every timeout Reconnect
-        (Connecting _ timeout, Just _) -> Time.every timeout Reconnect
+    , case model.ircConnection of
+        Connecting _ timeout-> Time.every timeout Reconnect
         _ -> Sub.none
     ]
 
