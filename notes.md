@@ -1,1 +1,2 @@
+- not getting (refreshing?) subscriber list
 - other caps to try and get hosts - test HOSTTARGET first

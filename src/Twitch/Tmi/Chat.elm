@@ -71,6 +71,7 @@ type NoticeType
   | Raid
   | Ritual
   | Resub
+  | Sub
   | SubGift
   | UnknownNotice String
 type Emote = Emote String (List CharacterRange)
@@ -377,6 +378,8 @@ tagMsgId =
         |. msgIdName "ritual"
       , succeed Resub
         |. msgIdName "resub"
+      , succeed Sub
+        |. msgIdName "sub"
       , succeed SubGift
         |. msgIdName "subgift"
       , succeed UnknownNotice

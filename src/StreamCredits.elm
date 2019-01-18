@@ -415,6 +415,9 @@ chatResponse id message line model =
         Chat.Resub -> 
           let sub = mySub line in
           ( combineSubs sub model, Cmd.none )
+        Chat.Sub -> 
+          let sub = mySub line in
+          ( combineSubs sub model, Cmd.none )
         Chat.SubGift -> 
           let sub = mySub line in
           ( combineSubs sub model, Cmd.none )
