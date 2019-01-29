@@ -42,6 +42,7 @@ type Tag
   | Mod Bool
   | MsgId NoticeType
   | MsgParamDisplayName String
+  | MsgParamCumulativeMonths Int
   | MsgParamLogin String
   | MsgParamMonths Int
   | MsgParamProfileImageUrl String
@@ -49,6 +50,8 @@ type Tag
   | MsgParamRecipientId String
   | MsgParamRecipientUserName String
   | MsgParamRitualName String
+  | MsgParamShouldShareStreak Bool
+  | MsgParamStreakMonths Int
   | MsgParamSubPlan String
   | MsgParamSubPlanName String
   | MsgParamViewerCount Int
@@ -170,6 +173,9 @@ tag =
       , succeed MsgParamDisplayName
         |. tagName "msg-param-displayName"
         |= tagValue
+      , succeed MsgParamCumulativeMonths
+        |. tagName "msg-param-cumulative-months"
+        |= int "Expecting Int" "Invalid Int"
       , succeed MsgParamLogin
         |. tagName "msg-param-login"
         |= tagValue
@@ -191,6 +197,12 @@ tag =
       , succeed MsgParamRitualName
         |. tagName "msg-param-ritual-name"
         |= tagValue
+      , succeed MsgParamShouldShareStreak
+        |. tagName "msg-param-should-share-streak"
+        |= tagBool
+      , succeed MsgParamStreakMonths
+        |. tagName "msg-param-streak-months"
+        |= int "Expecting Int" "Invalid Int"
       , succeed MsgParamSubPlanName -- backward because of substring
         |. tagName "msg-param-sub-plan-name"
         |= tagEscapedString

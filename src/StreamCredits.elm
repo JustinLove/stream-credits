@@ -565,6 +565,7 @@ mySub line =
         Chat.DisplayName name -> {sub | displayName = name}
         Chat.UserId id -> {sub | userId = id}
         Chat.MsgParamMonths count -> {sub | months = count}
+        Chat.MsgParamCumulativeMonths count -> {sub | months = count}
         Chat.MsgParamSubPlan plan -> {sub | points = planPoints plan}
         _ -> sub
     ) (Sub "" "" 0 0) line.tags

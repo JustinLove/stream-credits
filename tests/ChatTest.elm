@@ -180,6 +180,45 @@ suite =
                     , Chat.UserId "1337"
                     , Chat.UserType "staff"
                     ]
+      , test "sub with cumulative months and shared streak" <|
+          \_ ->
+            case Parser.run Chat.line Chat.sampleResubSharedStreakMessage of
+              Err err ->
+                Expect.fail (Chat.deadEndsToString err)
+              Ok line ->
+                line
+                  |> .tags
+                  |> removeUninterestingTags
+                  |> Expect.equal
+                    [ Chat.Flags ""
+                    , Chat.MsgId Chat.Resub
+                    , Chat.MsgParamMonths 0
+                    , Chat.MsgParamCumulativeMonths 12
+                    , Chat.MsgParamStreakMonths 3
+                    , Chat.MsgParamShouldShareStreak True
+                    , Chat.MsgParamSubPlanName "Channel Subscription (wagamamatv)"
+                    , Chat.MsgParamSubPlan "Prime"
+                    , Chat.SystemMsg "vtho Subscribed at Tier 1. They subscribed for 10 months, currently on a 3 month streak!"
+                    ]
+      , test "sub with cumulative months and unshared streak" <|
+          \_ ->
+            case Parser.run Chat.line Chat.sampleResubUnsharedStreakMessage of
+              Err err ->
+                Expect.fail (Chat.deadEndsToString err)
+              Ok line ->
+                line
+                  |> .tags
+                  |> removeUninterestingTags
+                  |> Expect.equal
+                    [ Chat.Flags ""
+                    , Chat.MsgId Chat.Resub
+                    , Chat.MsgParamMonths 0
+                    , Chat.MsgParamCumulativeMonths 12
+                    , Chat.MsgParamShouldShareStreak False
+                    , Chat.MsgParamSubPlanName "Channel Subscription (wagamamatv)"
+                    , Chat.MsgParamSubPlan "Prime"
+                    , Chat.SystemMsg "vtho Subscribed at Tier 1. They subscribed for 10 months!"
+                    ]
       , test "gifted sub line" <|
           \_ ->
             case Parser.run Chat.line Chat.sampleGiftedSubMessage of
