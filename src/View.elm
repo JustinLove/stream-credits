@@ -219,6 +219,7 @@ maximumSectionSize height count =
   + headingSpacing height
   + count * creditFontSize height
   + (count - 1) * creditSpacing height
+  + sectionSpacing height
 
 rowsAndColumns : Int -> Int -> List String -> (Int, Int)
 rowsAndColumns windowWidth windowHeight items =
@@ -344,6 +345,7 @@ creditSize model =
   + (applySections (measureSection model.windowWidth model.windowHeight) model
       |> List.foldl (+) 0
     )
+  - (sectionSpacing model.windowHeight) -- added spacing to every section, even the last
   + trailingGap
 
 scrollSpeed : Int -> Float
