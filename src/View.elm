@@ -104,7 +104,7 @@ view model =
               , spacing (headingSpacing model.windowHeight)
               , centerY
               ]
-              [ []
+              [ [""]
                 |> displaySection model.windowWidth model.windowHeight "Thanks for watching!"
               , el [ centerX ] <|
                 displayNameEntryBox model.login
@@ -123,7 +123,7 @@ view model =
     ]
 
 applySections fun model =
-  [ []
+  [ [""]
     |> fun "Thanks for watching!"
   , model.cheers
     |> Dict.values
