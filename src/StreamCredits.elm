@@ -39,7 +39,7 @@ type Msg
   | WindowSize (Int, Int)
   | Visibility Browser.Events.Visibility
   | FrameStep Float
-  | Hosts (Result Http.Error (List Tmi.Host))
+  | Hosts (Result Http.Error (List Tmi.HostingTarget))
   | User (Result Http.Error (List Helix.User))
   | Self (Result Http.Error (List Helix.User))
   | Follows (Result Http.Error (List Helix.Follow))
@@ -525,7 +525,7 @@ subscriptions model =
         _ -> Sub.none
     ]
 
-myHost : Tmi.Host -> Host
+myHost : Tmi.HostingTarget -> Host
 myHost host =
   { hostId = host.hostId
   , hostDisplayName = host.hostDisplayName
@@ -590,7 +590,7 @@ fetchHosts id =
     , headers = []
     , url = fetchHostsUrl id
     , body = Http.emptyBody
-    , expect = Http.expectJson Hosts Tmi.hosts
+    , expect = Http.expectJson Hosts Tmi.hostingTarget
     , timeout = Nothing
     , tracker = Nothing
     }
