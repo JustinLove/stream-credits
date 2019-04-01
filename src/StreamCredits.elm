@@ -44,6 +44,7 @@ type Msg
   | Self (Result Http.Error (List Helix.User))
   | Follows (Result Http.Error (List Helix.Follow))
   | Subscriptions (Result Http.Error (Kraken.Paginated (List Kraken.Subscription)))
+  | SubscriptionsH (Result Http.Error (List Helix.Subscription))
   | BitsLeaderboard (Result Http.Error (List Helix.BitsLeader))
   | CurrentStream (Result Http.Error (List Helix.Stream))
   | SocketEvent PortSocket.Id PortSocket.Event
@@ -281,6 +282,16 @@ update msg model =
     Subscriptions (Err error) ->
       let _ = Debug.log "subscriptions fetch error" error in
       (model, Cmd.none)
+    SubscriptionsH (Ok twitchSubscriptions) ->
+      let
+        subscribers = List.map mySubscriptionH twitchSubscriptions
+      in
+        ( { model | subscribers = subscribers }
+        , Cmd.none
+        )
+    SubscriptionsH (Err error) ->
+      let _ = Debug.log "subscriptions fetch error" error in
+      (model, Cmd.none)
     BitsLeaderboard (Err error) ->
       let _ = Debug.log "bits leaderboard fetch error" error in
       (model, Cmd.none)
@@ -502,7 +513,7 @@ refresh mAuth mUserId =
       Cmd.batch
         [ fetchHosts id
         , fetchFollows id
-        , fetchSubscriptions mAuth id 0
+        , fetchSubscriptionsH mAuth id
         , fetchBitsLeaderboard mAuth
         , fetchStreamById id
         ]
@@ -623,6 +634,14 @@ mySubscription sub =
   , points = planPoints sub.subPlan
   }
 
+mySubscriptionH : Helix.Subscription -> Sub
+mySubscriptionH sub =
+  { userId = sub.userId
+  , displayName = sub.userName
+  , months = 0
+  , points = planPoints sub.tier
+  }
+
 fetchSubscriptionsUrl : String -> Int -> String
 fetchSubscriptionsUrl id offset =
   "https://api.twitch.tv/kraken/channels/" ++ id ++ "/subscriptions?limit=100&offset=" ++ (String.fromInt offset)
@@ -637,6 +656,24 @@ fetchSubscriptions mauth id offset =
         , decoder = Kraken.paginated offset Kraken.subscriptions
         , tagger = Subscriptions
         , url = (fetchSubscriptionsUrl id offset)
+        }
+    Nothing ->
+      Cmd.none
+
+fetchSubscriptionsUrlH : String -> String
+fetchSubscriptionsUrlH id =
+  "https://api.twitch.tv/helix/subscriptions/?broadcaster_id=" ++ id
+
+fetchSubscriptionsH : Maybe String -> String -> Cmd Msg
+fetchSubscriptionsH mauth id =
+  case mauth of
+    Just _ ->
+      Helix.send <|
+        { clientId = TwitchId.clientId
+        , auth = mauth
+        , decoder = Helix.subscriptions
+        , tagger = SubscriptionsH
+        , url = (fetchSubscriptionsUrlH id)
         }
     Nothing ->
       Cmd.none
