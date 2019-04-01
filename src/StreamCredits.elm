@@ -1,7 +1,7 @@
 module StreamCredits exposing (..)
 
 import ObsStudio
-import Pagination as Kraken
+import Pagination as Helix
 import PortSocket
 import Twitch.Tmi.Chat as Chat
 --import Twitch.Tmi.ChatSamples as Chat
@@ -43,8 +43,7 @@ type Msg
   | User (Result Http.Error (List Helix.User))
   | Self (Result Http.Error (List Helix.User))
   | Follows (Result Http.Error (List Helix.Follow))
-  | Subscriptions (Result Http.Error (Kraken.Paginated (List Kraken.Subscription)))
-  | SubscriptionsH (Result Http.Error (List Helix.Subscription))
+  | Subscriptions Int (Result Http.Error (Helix.Paginated (List Helix.Subscription)))
   | BitsLeaderboard (Result Http.Error (List Helix.BitsLeader))
   | CurrentStream (Result Http.Error (List Helix.Stream))
   | SocketEvent PortSocket.Id PortSocket.Event
@@ -262,34 +261,25 @@ update msg model =
     Follows (Err error) ->
       let _ = Debug.log "follows fetch error" error in
       (model, Cmd.none)
-    Subscriptions (Ok (Kraken.Paginated offset total twitchSubscriptions)) ->
+    Subscriptions offset (Ok (Helix.Paginated cursor twitchSubscriptions)) ->
       let
+        _ = Debug.log "cursor" cursor
         subscribers = List.map mySubscription twitchSubscriptions
-        records = List.length subscribers
-        fetched = offset + records
       in
-      ( if offset == 0 then
-          { model | subscribers = subscribers }
-        else
-          { model | subscribers = List.append model.subscribers subscribers }
-      , if fetched < total && records > 0 then
-          case model.userId of
-            Just id -> fetchSubscriptions model.auth id fetched
-            Nothing -> Cmd.none
-        else
-          Cmd.none
-      )
-    Subscriptions (Err error) ->
-      let _ = Debug.log "subscriptions fetch error" error in
-      (model, Cmd.none)
-    SubscriptionsH (Ok twitchSubscriptions) ->
-      let
-        subscribers = List.map mySubscriptionH twitchSubscriptions
-      in
-        ( { model | subscribers = subscribers }
-        , Cmd.none
+        ( if offset == 0 then
+            { model | subscribers = subscribers }
+          else
+            { model | subscribers = List.append model.subscribers subscribers }
+        , if List.isEmpty subscribers then
+            Cmd.none
+          else
+            case model.userId of
+              Just id ->
+                fetchSubscriptions model.auth id (offset + (List.length subscribers)) (Just cursor)
+              Nothing ->
+                Cmd.none
         )
-    SubscriptionsH (Err error) ->
+    Subscriptions _ (Err error) ->
       let _ = Debug.log "subscriptions fetch error" error in
       (model, Cmd.none)
     BitsLeaderboard (Err error) ->
@@ -513,7 +503,7 @@ refresh mAuth mUserId =
       Cmd.batch
         [ fetchHosts id
         , fetchFollows id
-        , fetchSubscriptionsH mAuth id
+        , fetchSubscriptions mAuth id 0 Nothing
         , fetchBitsLeaderboard mAuth
         , fetchStreamById id
         ]
@@ -626,54 +616,28 @@ fetchFollows id =
     , url = (fetchFollowsUrl id)
     }
 
-mySubscription : Kraken.Subscription -> Sub
+mySubscription : Helix.Subscription -> Sub
 mySubscription sub =
-  { userId = sub.userId
-  , displayName = sub.userDisplayName
-  , months = 0
-  , points = planPoints sub.subPlan
-  }
-
-mySubscriptionH : Helix.Subscription -> Sub
-mySubscriptionH sub =
   { userId = sub.userId
   , displayName = sub.userName
   , months = 0
   , points = planPoints sub.tier
   }
 
-fetchSubscriptionsUrl : String -> Int -> String
-fetchSubscriptionsUrl id offset =
-  "https://api.twitch.tv/kraken/channels/" ++ id ++ "/subscriptions?limit=100&offset=" ++ (String.fromInt offset)
+fetchSubscriptionsUrl : String -> Maybe String -> String
+fetchSubscriptionsUrl id cursor =
+  "https://api.twitch.tv/helix/subscriptions/?broadcaster_id=" ++ id ++ "&first=100" ++ (cursor |> Maybe.map (\c -> "&after=" ++ c) |> Maybe.withDefault "")
 
-fetchSubscriptions : Maybe String -> String -> Int -> Cmd Msg
-fetchSubscriptions mauth id offset =
-  case mauth of
-    Just _ ->
-      Kraken.send <|
-        { clientId = TwitchId.clientId
-        , auth = mauth
-        , decoder = Kraken.paginated offset Kraken.subscriptions
-        , tagger = Subscriptions
-        , url = (fetchSubscriptionsUrl id offset)
-        }
-    Nothing ->
-      Cmd.none
-
-fetchSubscriptionsUrlH : String -> String
-fetchSubscriptionsUrlH id =
-  "https://api.twitch.tv/helix/subscriptions/?broadcaster_id=" ++ id
-
-fetchSubscriptionsH : Maybe String -> String -> Cmd Msg
-fetchSubscriptionsH mauth id =
+fetchSubscriptions : Maybe String -> String -> Int -> Maybe String -> Cmd Msg
+fetchSubscriptions mauth id offset cursor =
   case mauth of
     Just _ ->
       Helix.send <|
         { clientId = TwitchId.clientId
         , auth = mauth
-        , decoder = Helix.subscriptions
-        , tagger = SubscriptionsH
-        , url = (fetchSubscriptionsUrlH id)
+        , decoder = Helix.paginated Helix.subscriptions
+        , tagger = Subscriptions offset
+        , url = (fetchSubscriptionsUrl id cursor)
         }
     Nothing ->
       Cmd.none
