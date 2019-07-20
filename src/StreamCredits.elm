@@ -20,8 +20,6 @@ import Task
 import Time exposing (Posix)
 import Twitch.Helix as Helix
 import Twitch.Helix.Decode as Helix
-import Twitch.Kraken as Kraken
-import Twitch.Kraken.Decode as Kraken
 import Twitch.Tmi.Decode as Tmi
 import TwitchId
 import Url exposing (Url)
