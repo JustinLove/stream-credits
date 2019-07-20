@@ -14,6 +14,8 @@ sampleChatMessage = ":wondible!wondible@wondible.tmi.twitch.tv PRIVMSG #wondible
 
 sampleTaggedChatMessage = "@badges=broadcaster/1;color=#1E90FF;display-name=wondible;emotes=;flags=;id=036fe963-8707-44a1-8fb2-e1412343825d;mod=0;room-id=56623426;subscriber=0;tmi-sent-ts=1546013301508;turbo=0;user-id=56623426;user-type= :wondible!wondible@wondible.tmi.twitch.tv PRIVMSG #wondible :test\r\n"
 
+sampleBadgeInfoMessage = "@badge-info=subscriber/7;badges=broadcaster/1,subscriber/0;color=#1E90FF;display-name=wondible;emotes=;flags=;id=0a8a9413-39a5-4d80-904d-63dcddd811bc;mod=0;room-id=56623426;subscriber=1;tmi-sent-ts=1563633404100;turbo=0;user-id=56623426;user-type= :wondible!wondible@wondible.tmi.twitch.tv PRIVMSG #wondible :test\r\n"
+
 sampleEmoteChatMessage = "@badges=;color=#1E90FF;display-name=Stay_Hydrated_Bot;emotes=869375:0-11/1:94-95;flags=;id=15992f17-5504-4879-80df-2c81b55b3422;mod=0;room-id=56623426;subscriber=0;tmi-sent-ts=1546015898754;turbo=0;user-id=183484964;user-type= :stay_hydrated_bot!stay_hydrated_bot@stay_hydrated_bot.tmi.twitch.tv PRIVMSG #wondible :stayhyBottle [reminder] Live for 2 hours. Total water consumed should be at least 8oz (240mL) :)\r\n"
 
 sampleEmoteRepeatedChatMessage = "@badges=global_mod/1,turbo/1;color=#0D4200;display-name=dallas;emotes=25:0-4,12-16/1902:6-10;id=b34ccfc7-4977-403a-8a94-33c6bac34fb8;mod=0;room-id=1337;subscriber=0;tmi-sent-ts=1507246572675;turbo=1;user-id=1337;user-type=global_mod :ronni!ronni@ronni.tmi.twitch.tv PRIVMSG #dallas :Kappa Keepo Kappa\r\n"

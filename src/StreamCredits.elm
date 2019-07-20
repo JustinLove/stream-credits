@@ -261,7 +261,6 @@ update msg model =
       (model, Cmd.none)
     Subscriptions offset (Ok (Helix.Paginated cursor twitchSubscriptions)) ->
       let
-        _ = Debug.log "cursor" cursor
         subscribers = List.map mySubscription twitchSubscriptions
       in
         ( if offset == 0 then

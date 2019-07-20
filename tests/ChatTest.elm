@@ -79,6 +79,31 @@ suite =
                   "PRIVMSG"
                   ["#wondible", "test"])
                 )
+      , test "badge info chat line" <|
+          \_ ->
+            Chat.sampleBadgeInfoMessage
+                |> Parser.run Chat.line
+                |> Expect.equal (Ok (Chat.Line
+                  ( [ Chat.BadgeInfo ["subscriber/7"]
+                    , Chat.Badges ["broadcaster/1", "subscriber/0"]
+                    , Chat.Color "#1E90FF"
+                    , Chat.DisplayName "wondible"
+                    , Chat.Emotes []
+                    , Chat.Flags ""
+                    , Chat.MessageId "0a8a9413-39a5-4d80-904d-63dcddd811bc"
+                    , Chat.Mod False
+                    , Chat.RoomId "56623426"
+                    , Chat.Subscriber True
+                    , Chat.TmiSentTs (Time.millisToPosix 1563633404100)
+                    , Chat.Turbo False
+                    , Chat.UserId "56623426"
+                    , Chat.UserType ""
+                    ]
+                  )
+                  (Just "wondible!wondible@wondible.tmi.twitch.tv")
+                  "PRIVMSG"
+                  ["#wondible", "test"])
+                )
       , test "room state" <|
           \_ ->
             case Parser.run Chat.line Chat.sampleRoomStateMessage of

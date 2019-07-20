@@ -27,7 +27,8 @@ type alias Line =
   , params : List String
   }
 type Tag
-  = Badges (List String)
+  = BadgeInfo (List String)
+  | Badges (List String)
   | BanDuration Int
   | Bits Int
   | BroadcasterLang String
@@ -128,7 +129,10 @@ tag : MessageParser Tag
 tag =
   inContext "parsing tag" <|
     oneOf
-      [ succeed Badges
+      [ succeed BadgeInfo
+        |. tagName "badge-info"
+        |= tagBadgeList
+      , succeed Badges
         |. tagName "badges"
         |= tagBadgeList
       , succeed BanDuration
