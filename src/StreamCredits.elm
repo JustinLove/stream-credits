@@ -132,6 +132,31 @@ init flags location key =
     ]
   )
 
+logout : Model -> Model
+logout model =
+  { location = model.location
+  , navigationKey = model.navigationKey
+  , time = model.time
+  , windowWidth = model.windowWidth
+  , windowHeight = model.windowHeight
+  , visibility = model.visibility
+  , timeElapsed = 0
+  , login = Nothing
+  , userId = Nothing
+  , auth = Nothing
+  , authLogin = Nothing
+  , ircConnection = Disconnected
+  , hosts = []
+  , raids = []
+  , cheers = Dict.empty
+  , bitsLeaders = []
+  , subs = Dict.empty
+  , subscribers = []
+  , follows = []
+  , currentFollows = []
+  , streamStart = 0
+  }
+
 updateWithChecks msg model =
   let
     (m2,cmd2) = update msg model
@@ -283,6 +308,9 @@ update msg model =
               _ ->
                 Cmd.none
         )
+    Subscriptions _ (Err (Http.BadStatus 401)) ->
+      let _ = Debug.log "subscriptions fetch auth error" "" in
+      (logout model, Cmd.none)
     Subscriptions _ (Err error) ->
       let _ = Debug.log "subscriptions fetch error" error in
       (model, Cmd.none)
