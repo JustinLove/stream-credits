@@ -154,14 +154,18 @@ update msg model =
         , userId = muserId
         , auth = mauth
         }
-      , Cmd.batch
-        [ ( case (muserId, mlogin) of
-          (Just id, _) -> refresh mauth muserId
-          (Nothing, Just login) -> fetchUserByName login
-          (Nothing, Nothing) -> Cmd.none
-          )
-        , fetchSelf mauth
-        ]
+      , case mauth of
+        Just auth ->
+          Cmd.batch
+            [ ( case (muserId, mlogin) of
+              (Just id, _) -> refresh auth muserId
+              (Nothing, Just login) -> fetchUserByName auth login
+              (Nothing, Nothing) -> Cmd.none
+              )
+            , fetchSelf auth
+            ]
+        Nothing ->
+          Cmd.none
       )
     Navigate (Browser.Internal url) ->
       ( {model | location = url}
@@ -174,7 +178,9 @@ update msg model =
     Visibility visible ->
       ( {model | visibility = visible, timeElapsed = 0 }
       , if visible == Browser.Events.Visible then
-          refresh model.auth model.userId
+          case model.auth of
+            Just auth -> refresh auth model.userId
+            Nothing -> Cmd.none
         else
           Cmd.none
       )
@@ -207,7 +213,9 @@ update msg model =
       , if (Just user.id) /= model.userId then
           Cmd.batch
             [ Navigation.pushUrl m2.navigationKey (createPath m2)
-            , refresh (model.auth) (Just user.id)
+            , case model.auth of
+                Just auth -> refresh auth (Just user.id)
+                Nothing -> Cmd.none
             ]
         else if (Just user.login) /= model.login then
           Cmd.batch
@@ -269,10 +277,10 @@ update msg model =
         , if List.isEmpty subscribers then
             Cmd.none
           else
-            case model.userId of
-              Just id ->
-                fetchSubscriptions model.auth id (offset + (List.length subscribers)) (Just cursor)
-              Nothing ->
+            case (model.auth, model.userId) of
+              (Just auth, Just id) ->
+                fetchSubscriptions auth id (offset + (List.length subscribers)) (Just cursor)
+              _ ->
                 Cmd.none
         )
     Subscriptions _ (Err error) ->
@@ -492,16 +500,16 @@ reduce step msg (model, cmd) =
   in
     (m2, Cmd.batch [cmd, c2])
 
-refresh : Maybe String -> Maybe String -> Cmd Msg
-refresh mAuth mUserId =
+refresh : String -> Maybe String -> Cmd Msg
+refresh auth mUserId =
   case mUserId of
     Just id ->
       Cmd.batch
         [ fetchHosts id
-        , fetchFollows id
-        , fetchSubscriptions mAuth id 0 Nothing
-        , fetchBitsLeaderboard mAuth
-        , fetchStreamById id
+        , fetchFollows auth id
+        , fetchSubscriptions auth id 0 Nothing
+        , fetchBitsLeaderboard auth
+        , fetchStreamById auth id
         ]
     Nothing ->
       Cmd.none
@@ -602,11 +610,11 @@ fetchFollowsUrl : String -> String
 fetchFollowsUrl id =
   "https://api.twitch.tv/helix/users/follows?to_id=" ++ id
 
-fetchFollows : String -> Cmd Msg
-fetchFollows id =
+fetchFollows : String -> String -> Cmd Msg
+fetchFollows auth id =
   Helix.send <|
     { clientId = TwitchId.clientId
-    , auth = Nothing
+    , auth = Just auth
     , decoder = Helix.follows
     , tagger = Follows
     , url = (fetchFollowsUrl id)
@@ -624,92 +632,67 @@ fetchSubscriptionsUrl : String -> Maybe String -> String
 fetchSubscriptionsUrl id cursor =
   "https://api.twitch.tv/helix/subscriptions/?broadcaster_id=" ++ id ++ "&first=100" ++ (cursor |> Maybe.map (\c -> "&after=" ++ c) |> Maybe.withDefault "")
 
-fetchSubscriptions : Maybe String -> String -> Int -> Maybe String -> Cmd Msg
-fetchSubscriptions mauth id offset cursor =
-  case mauth of
-    Just _ ->
-      Helix.send <|
-        { clientId = TwitchId.clientId
-        , auth = mauth
-        , decoder = Helix.paginated Helix.subscriptions
-        , tagger = Subscriptions offset
-        , url = (fetchSubscriptionsUrl id cursor)
-        }
-    Nothing ->
-      Cmd.none
+fetchSubscriptions : String -> String -> Int -> Maybe String -> Cmd Msg
+fetchSubscriptions auth id offset cursor =
+  Helix.send <|
+    { clientId = TwitchId.clientId
+    , auth = Just auth
+    , decoder = Helix.paginated Helix.subscriptions
+    , tagger = Subscriptions offset
+    , url = (fetchSubscriptionsUrl id cursor)
+    }
 
 fetchBitsLeaderboardUrl : String
 fetchBitsLeaderboardUrl =
   "https://api.twitch.tv/helix/bits/leaderboard?period=week"
 
-fetchBitsLeaderboard : Maybe String -> Cmd Msg
-fetchBitsLeaderboard mauth =
-  case mauth of
-    Just _ ->
-      Helix.send <|
-        { clientId = TwitchId.clientId
-        , auth = mauth
-        , decoder = Helix.bitsLeaderboard
-        , tagger = BitsLeaderboard
-        , url = fetchBitsLeaderboardUrl
-        }
-    Nothing ->
-      Cmd.none
+fetchBitsLeaderboard : String -> Cmd Msg
+fetchBitsLeaderboard auth =
+  Helix.send <|
+    { clientId = TwitchId.clientId
+    , auth = Just auth
+    , decoder = Helix.bitsLeaderboard
+    , tagger = BitsLeaderboard
+    , url = fetchBitsLeaderboardUrl
+    }
 
 fetchUserByNameUrl : String -> String
 fetchUserByNameUrl login =
   "https://api.twitch.tv/helix/users?login=" ++ login
 
-fetchUserByName : String -> Cmd Msg
-fetchUserByName login =
+fetchUserByName : String -> String -> Cmd Msg
+fetchUserByName auth login =
   Helix.send <|
     { clientId = TwitchId.clientId
-    , auth = Nothing
+    , auth = Just auth
     , decoder = Helix.users
     , tagger = User
     , url = (fetchUserByNameUrl login)
-    }
-
-fetchUserByIdUrl : String -> String
-fetchUserByIdUrl id =
-  "https://api.twitch.tv/helix/users?id=" ++ id
-
-fetchUserById : String -> Cmd Msg
-fetchUserById id =
-  Helix.send <|
-    { clientId = TwitchId.clientId
-    , auth = Nothing
-    , decoder = Helix.users
-    , tagger = User
-    , url = (fetchUserByIdUrl id)
     }
 
 fetchSelfUrl : String
 fetchSelfUrl =
   "https://api.twitch.tv/helix/users"
 
-fetchSelf : Maybe String -> Cmd Msg
+fetchSelf : String -> Cmd Msg
 fetchSelf auth =
-  if auth == Nothing then
-    Cmd.none
-  else
-    Helix.send <|
-      { clientId = TwitchId.clientId
-      , auth = auth
-      , decoder = Helix.users
-      , tagger = Self
-      , url = fetchSelfUrl
-      }
+  Helix.send <|
+    { clientId = TwitchId.clientId
+    , auth = Just auth
+    , decoder = Helix.users
+    , tagger = Self
+    , url = fetchSelfUrl
+    }
 
 fetchStreamByIdUrl : String -> String
 fetchStreamByIdUrl id =
   "https://api.twitch.tv/helix/streams?user_id=" ++ id
 
-fetchStreamById : String -> Cmd Msg
-fetchStreamById id =
+fetchStreamById : String -> String -> Cmd Msg
+fetchStreamById auth id =
   Helix.send <|
     { clientId = TwitchId.clientId
-    , auth = Nothing
+    , auth = Just auth
     , decoder = Helix.streams
     , tagger = CurrentStream
     , url = (fetchStreamByIdUrl id)
