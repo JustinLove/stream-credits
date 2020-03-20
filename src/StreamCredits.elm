@@ -37,13 +37,14 @@ type Msg
   | WindowSize (Int, Int)
   | Visibility Browser.Events.Visibility
   | FrameStep Float
-  | Hosts (Result Http.Error (List Tmi.HostingTarget))
-  | User (Result Http.Error (List Helix.User))
-  | Self (Result Http.Error (List Helix.User))
-  | Follows (Result Http.Error (List Helix.Follow))
-  | Subscriptions Int (Result Http.Error (Helix.Paginated (List Helix.Subscription)))
-  | BitsLeaderboard (Result Http.Error (List Helix.BitsLeader))
-  | CurrentStream (Result Http.Error (List Helix.Stream))
+  | HttpError String Http.Error
+  | Hosts (List Tmi.HostingTarget)
+  | User (List Helix.User)
+  | Self (List Helix.User)
+  | Follows (List Helix.Follow)
+  | Subscriptions Int (Helix.Paginated (List Helix.Subscription))
+  | BitsLeaderboard (List Helix.BitsLeader)
+  | CurrentStream (List Helix.Stream)
   | SocketEvent PortSocket.Id PortSocket.Event
   | Reconnect Posix
 
@@ -216,7 +217,13 @@ update msg model =
         ( {model | timeElapsed = model.timeElapsed + delta }, Cmd.none )
     Navigate (Browser.External url) ->
       (model, Navigation.load url)
-    User (Ok (user::_)) ->
+    HttpError source (Http.BadStatus 401) ->
+      let _ = Debug.log ("fetch auth error: " ++ source) "" in
+      (logout model, Cmd.none)
+    HttpError source (error) ->
+      let _ = Debug.log ("fetch error: " ++ source) error in
+      (model, Cmd.none)
+    User (user::_) ->
       let
         m2 =
           { model
@@ -249,36 +256,27 @@ update msg model =
         else
           Cmd.none
       )
-    User (Ok _) ->
+    User _ ->
       let _ = Debug.log "user did not find that login name" "" in
       (model, Cmd.none)
-    User (Err error) ->
-      let _ = Debug.log "user fetch error" error in
-      (model, Cmd.none)
-    Self (Ok (user::_)) ->
+    Self (user::_) ->
       let
         m2 =
           { model
           | authLogin = Just user.login
           }
       in
-        update (User (Ok [user])) m2
-    Self (Ok _) ->
+        update (User [user]) m2
+    Self _ ->
       let _ = Debug.log "self lookup did not find a user" "" in
       (model, Cmd.none)
-    Self (Err error) ->
-      let _ = Debug.log "self fetch error" error in
-      (model, Cmd.none)
-    Hosts (Ok twitchHosts) ->
+    Hosts twitchHosts ->
       ( { model
         | hosts = List.map myHost twitchHosts
         }
       , Cmd.none
       )
-    Hosts (Err error) ->
-      let _ = Debug.log "hosts fetch error" error in
-      (model, Cmd.none)
-    Follows (Ok twitchFollows) ->
+    Follows twitchFollows ->
       let
         follows = List.map myFollow twitchFollows
       in
@@ -288,10 +286,7 @@ update msg model =
         }
       , Cmd.none
       )
-    Follows (Err error) ->
-      let _ = Debug.log "follows fetch error" error in
-      (model, Cmd.none)
-    Subscriptions offset (Ok (Helix.Paginated cursor twitchSubscriptions)) ->
+    Subscriptions offset (Helix.Paginated cursor twitchSubscriptions) ->
       let
         subscribers = List.map mySubscription twitchSubscriptions
       in
@@ -308,23 +303,14 @@ update msg model =
               _ ->
                 Cmd.none
         )
-    Subscriptions _ (Err (Http.BadStatus 401)) ->
-      let _ = Debug.log "subscriptions fetch auth error" "" in
-      (logout model, Cmd.none)
-    Subscriptions _ (Err error) ->
-      let _ = Debug.log "subscriptions fetch error" error in
-      (model, Cmd.none)
-    BitsLeaderboard (Err error) ->
-      let _ = Debug.log "bits leaderboard fetch error" error in
-      (model, Cmd.none)
-    BitsLeaderboard (Ok twitchBitsLeaderboard) ->
+    BitsLeaderboard twitchBitsLeaderboard ->
       let
         leaders = List.map myBitsLeader twitchBitsLeaderboard
       in
       ( { model | bitsLeaders = leaders }
       , Cmd.none
       )
-    CurrentStream (Ok (stream::_)) ->
+    CurrentStream (stream::_) ->
       let
         start = (Time.posixToMillis stream.startedAt)
       in
@@ -334,16 +320,13 @@ update msg model =
         }
       , Cmd.none
       )
-    CurrentStream (Ok _) ->
+    CurrentStream _ ->
       let _ = Debug.log "no stream, not live?" "" in
       ( { model
         | streamStart = 0
         }
       , Cmd.none
       )
-    CurrentStream (Err error) ->
-      let _ = Debug.log "stream fetch error" error in
-      (model, Cmd.none)
     SocketEvent id (PortSocket.Error value) ->
       let _ = Debug.log "websocket error" value in
       (model, Cmd.none)
@@ -612,6 +595,12 @@ planPoints plan =
     "3000" -> 3
     _ -> 1
 
+httpResponse : String -> (a -> Msg)-> Result Http.Error a -> Msg
+httpResponse source success result =
+  case result of
+    Ok value -> success value
+    Err err -> HttpError source err
+
 fetchHostsUrl : String -> String
 fetchHostsUrl id =
   "https://p3szakkejk.execute-api.us-east-1.amazonaws.com/production/hosts?include_logins=1&target=" ++ id
@@ -623,7 +612,7 @@ fetchHosts id =
     , headers = []
     , url = fetchHostsUrl id
     , body = Http.emptyBody
-    , expect = Http.expectJson Hosts Tmi.hostingTarget
+    , expect = Http.expectJson (httpResponse "hosts" Hosts) Tmi.hostingTarget
     , timeout = Nothing
     , tracker = Nothing
     }
@@ -644,7 +633,7 @@ fetchFollows auth id =
     { clientId = TwitchId.clientId
     , auth = auth
     , decoder = Helix.follows
-    , tagger = Follows
+    , tagger = httpResponse "follows" Follows
     , url = (fetchFollowsUrl id)
     }
 
@@ -666,7 +655,7 @@ fetchSubscriptions auth id offset cursor =
     { clientId = TwitchId.clientId
     , auth = auth
     , decoder = Helix.paginated Helix.subscriptions
-    , tagger = Subscriptions offset
+    , tagger = httpResponse "subscriptions" (Subscriptions offset)
     , url = (fetchSubscriptionsUrl id cursor)
     }
 
@@ -680,7 +669,7 @@ fetchBitsLeaderboard auth =
     { clientId = TwitchId.clientId
     , auth = auth
     , decoder = Helix.bitsLeaderboard
-    , tagger = BitsLeaderboard
+    , tagger = httpResponse "bits leaderboard" BitsLeaderboard
     , url = fetchBitsLeaderboardUrl
     }
 
@@ -694,7 +683,7 @@ fetchUserByName auth login =
     { clientId = TwitchId.clientId
     , auth = auth
     , decoder = Helix.users
-    , tagger = User
+    , tagger = httpResponse "user" User
     , url = (fetchUserByNameUrl login)
     }
 
@@ -708,7 +697,7 @@ fetchSelf auth =
     { clientId = TwitchId.clientId
     , auth = auth
     , decoder = Helix.users
-    , tagger = Self
+    , tagger = httpResponse "self" Self
     , url = fetchSelfUrl
     }
 
@@ -722,7 +711,7 @@ fetchStreamById auth id =
     { clientId = TwitchId.clientId
     , auth = auth
     , decoder = Helix.streams
-    , tagger = CurrentStream
+    , tagger = httpResponse "streams" CurrentStream
     , url = (fetchStreamByIdUrl id)
     }
 
