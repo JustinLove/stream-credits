@@ -614,7 +614,7 @@ fetchFollows : String -> String -> Cmd Msg
 fetchFollows auth id =
   Helix.send <|
     { clientId = TwitchId.clientId
-    , auth = Just auth
+    , auth = auth
     , decoder = Helix.follows
     , tagger = Follows
     , url = (fetchFollowsUrl id)
@@ -636,7 +636,7 @@ fetchSubscriptions : String -> String -> Int -> Maybe String -> Cmd Msg
 fetchSubscriptions auth id offset cursor =
   Helix.send <|
     { clientId = TwitchId.clientId
-    , auth = Just auth
+    , auth = auth
     , decoder = Helix.paginated Helix.subscriptions
     , tagger = Subscriptions offset
     , url = (fetchSubscriptionsUrl id cursor)
@@ -650,7 +650,7 @@ fetchBitsLeaderboard : String -> Cmd Msg
 fetchBitsLeaderboard auth =
   Helix.send <|
     { clientId = TwitchId.clientId
-    , auth = Just auth
+    , auth = auth
     , decoder = Helix.bitsLeaderboard
     , tagger = BitsLeaderboard
     , url = fetchBitsLeaderboardUrl
@@ -664,7 +664,7 @@ fetchUserByName : String -> String -> Cmd Msg
 fetchUserByName auth login =
   Helix.send <|
     { clientId = TwitchId.clientId
-    , auth = Just auth
+    , auth = auth
     , decoder = Helix.users
     , tagger = User
     , url = (fetchUserByNameUrl login)
@@ -678,7 +678,7 @@ fetchSelf : String -> Cmd Msg
 fetchSelf auth =
   Helix.send <|
     { clientId = TwitchId.clientId
-    , auth = Just auth
+    , auth = auth
     , decoder = Helix.users
     , tagger = Self
     , url = fetchSelfUrl
@@ -692,7 +692,7 @@ fetchStreamById : String -> String -> Cmd Msg
 fetchStreamById auth id =
   Helix.send <|
     { clientId = TwitchId.clientId
-    , auth = Just auth
+    , auth = auth
     , decoder = Helix.streams
     , tagger = CurrentStream
     , url = (fetchStreamByIdUrl id)
