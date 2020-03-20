@@ -1,4 +1,4 @@
-module View exposing (Msg(..), Host, Raid, Cheer, Sub, Follow, document, view, creditsOff)
+module View exposing (Msg, Host, Raid, Cheer, Sub, Follow, document, view, creditsOff)
 
 import TwitchId
 
@@ -17,8 +17,8 @@ import Svg.Attributes exposing (xlinkHref)
 import Url exposing (Url)
 import Url.Builder as Url
 
-type Msg
-  = SetUsername String
+type alias Msg
+  = Never
 
 type alias Host =
   { hostId : String
@@ -106,8 +106,6 @@ view model =
               ]
               [ [""]
                 |> displaySection model.windowWidth model.windowHeight "Thanks for watching!"
-              , el [ centerX ] <|
-                displayNameEntryBox model.login
               , el [ centerX ] <|
                 displayLogin model
               ]
@@ -254,22 +252,6 @@ displayItem item =
     ]
     (text item)
 
-displayNameEntryBox : Maybe String -> Element Msg
-displayNameEntryBox login =
-  el [] <|
-  html <|
-    Html.div [ Html.Attributes.class "name-entry" ]
-      [ Html.label [ Html.Attributes.for "channelname" ] [ Html.text "Channel Name" ]
-      , Html.text " "
-      , Html.input
-        [ Html.Attributes.type_ "text"
-        , Html.Attributes.id "channelname"
-        , Html.Attributes.name "channelname"
-        , Html.Attributes.placeholder (Maybe.withDefault "" login)
-        , on "change" <| targetValue Json.Decode.string SetUsername
-        ] []
-      ]
-
 displayLogin model =
   case model.auth of
     Just _ ->
@@ -301,11 +283,6 @@ authorizeUrl redirectUri =
 urlForRedirect : Url -> String
 urlForRedirect url =
   {url | query = Nothing, fragment = Nothing } |> Url.toString
-
-targetValue : Json.Decode.Decoder a -> (a -> Msg) -> Json.Decode.Decoder Msg
-targetValue decoder tagger =
-  Json.Decode.map tagger
-    (Json.Decode.at ["target", "value" ] decoder)
 
 --displayFooter : Model -> Element msg
 displayFooter model =

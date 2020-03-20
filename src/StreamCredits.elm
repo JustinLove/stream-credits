@@ -141,8 +141,7 @@ updateWithChecks msg model =
 
 update msg model =
   case msg of
-    UI (View.SetUsername username) ->
-      ( { model | timeElapsed = 0 }, fetchUserByName username )
+    UI _ -> (model, Cmd.none)
     CurrentUrl location ->
       let
         mlogin = extractSearchArgument "login" location
