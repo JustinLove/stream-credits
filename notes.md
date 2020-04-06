@@ -1,2 +1,2 @@
-- not getting (refreshing?) subscriber list
+- https://obsproject.com/tools/browser-drag-and-drop
 - other caps to try and get hosts - test HOSTTARGET first

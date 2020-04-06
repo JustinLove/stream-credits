@@ -141,6 +141,11 @@ applySections fun model =
     |> List.sortBy (.viewerCount>>negate)
     |> List.map .displayName
     |> fun "Thanks for Raiding!"
+  , model.subscribers
+    |> List.sortWith subRank
+    |> List.filter (\sub -> (Just sub.userId) /= model.userId)
+    |> List.map .displayName
+    |> fun "Subscribers"
   , model.hosts
     |> notRaids model.raids
     |> List.map .hostDisplayName
@@ -149,11 +154,6 @@ applySections fun model =
   , model.currentFollows
     |> List.map .fromName
     |> fun "Thanks for Following!"
-  , model.subscribers
-    |> List.sortWith subRank
-    |> List.filter (\sub -> (Just sub.userId) /= model.userId)
-    |> List.map .displayName
-    |> fun "Subscribers"
   ]
 
 subRank : Sub -> Sub -> Order
