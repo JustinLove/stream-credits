@@ -270,7 +270,7 @@ displayLogin model =
 
 authorizeUrl : String -> String
 authorizeUrl redirectUri =
-  "https://api.twitch.tv/kraken/oauth2/authorize"
+  "https://id.twitch.tv/oauth2/authorize"
     ++ (
       [ Url.string "client_id" TwitchId.clientId
       , Url.string "redirect_uri" redirectUri
