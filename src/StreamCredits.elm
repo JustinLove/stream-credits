@@ -20,7 +20,8 @@ import Task
 import Time exposing (Posix)
 import Twitch.Helix as Helix
 import Twitch.Helix.Decode as Helix
-import Twitch.Tmi.Decode as Tmi
+import Twitch.Kraken as Kraken
+import Twitch.Kraken.Decode as Kraken
 import TwitchId
 import Url exposing (Url)
 import Url.Builder as Url
@@ -38,7 +39,7 @@ type Msg
   | Visibility Browser.Events.Visibility
   | FrameStep Float
   | HttpError String Http.Error
-  | Hosts (List Tmi.HostingTarget)
+  | Hosts (List Kraken.Host)
   | User (List Helix.User)
   | Self (List Helix.User)
   | Follows (List Helix.Follow)
@@ -64,7 +65,6 @@ type alias Model =
   , windowHeight : Int
   , visibility : Browser.Events.Visibility
   , timeElapsed : Float
-  , login : Maybe String
   , userId : Maybe String
   , auth : Maybe String
   , authLogin : Maybe String
@@ -100,7 +100,6 @@ init flags location key =
       , windowHeight = 480
       , visibility = Browser.Events.Visible
       , timeElapsed = 0
-      , login = Nothing
       , userId = Nothing
       , auth = Nothing
       , authLogin = Nothing
@@ -142,7 +141,6 @@ logout model =
   , windowHeight = model.windowHeight
   , visibility = model.visibility
   , timeElapsed = 0
-  , login = Nothing
   , userId = Nothing
   , auth = Nothing
   , authLogin = Nothing
@@ -170,23 +168,20 @@ update msg model =
     UI _ -> (model, Cmd.none)
     CurrentUrl location ->
       let
-        mlogin = extractSearchArgument "login" location
         muserId = extractSearchArgument "userId" location
         mauth = extractHashArgument "access_token" location
       in
       ( { model
         | location = location
-        , login = mlogin
         , userId = muserId
         , auth = mauth
         }
       , case mauth of
         Just auth ->
           Cmd.batch
-            [ ( case (muserId, mlogin) of
-              (Just id, _) -> refresh auth muserId
-              (Nothing, Just login) -> fetchUserByName auth login
-              (Nothing, Nothing) -> Cmd.none
+            [ ( case muserId of
+              Just id -> refresh auth muserId
+              Nothing -> Cmd.none
               )
             , fetchSelf auth
             ]
@@ -227,8 +222,7 @@ update msg model =
       let
         m2 =
           { model
-          | login = Just user.login
-          , userId = Just user.id
+          | userId = Just user.id
           , cheers =
               if (Just user.id) /= model.userId then
                 Dict.empty
@@ -248,10 +242,6 @@ update msg model =
             , case model.auth of
                 Just auth -> refresh auth (Just user.id)
                 Nothing -> Cmd.none
-            ]
-        else if (Just user.login) /= model.login then
-          Cmd.batch
-            [ Navigation.pushUrl m2.navigationKey (createPath m2)
             ]
         else
           Cmd.none
@@ -294,12 +284,12 @@ update msg model =
             { model | subscribers = subscribers }
           else
             { model | subscribers = List.append model.subscribers subscribers }
-        , if List.isEmpty subscribers then
+        , if List.isEmpty subscribers || cursor == Nothing then
             Cmd.none
           else
             case (model.auth, model.userId) of
               (Just auth, Just id) ->
-                fetchSubscriptions auth id (offset + (List.length subscribers)) (Just cursor)
+                fetchSubscriptions auth id (offset + (List.length subscribers)) cursor
               _ ->
                 Cmd.none
         )
@@ -484,7 +474,7 @@ combineSubs sub model =
 
 chatConnectionUpdate : Model -> (Model, Cmd Msg)
 chatConnectionUpdate model =
-  case (model.ircConnection, model.login) of
+  case (model.ircConnection, model.authLogin) of
     (Disconnected, Just _) ->
       ( {model | ircConnection = Connecting twitchIrc 1000}
       , Cmd.none
@@ -516,7 +506,7 @@ refresh auth mUserId =
   case mUserId of
     Just id ->
       Cmd.batch
-        [ fetchHosts id
+        [ fetchHosts auth id
         , fetchFollows auth id
         , fetchSubscriptions auth id 0 Nothing
         , fetchBitsLeaderboard auth
@@ -529,7 +519,7 @@ subscriptions : Model -> Platform.Sub.Sub Msg
 subscriptions model =
   Sub.batch
     [ Browser.Events.onResize (\w h -> WindowSize (w, h))
-    , if model.visibility == Browser.Events.Visible then
+    , if model.visibility == Browser.Events.Visible && model.userId /= Nothing then
         Browser.Events.onAnimationFrameDelta FrameStep
       else
         Sub.none
@@ -541,10 +531,10 @@ subscriptions model =
         _ -> Sub.none
     ]
 
-myHost : Tmi.HostingTarget -> Host
+myHost : Kraken.Host -> Host
 myHost host =
   { hostId = host.hostId
-  , hostDisplayName = host.hostDisplayName
+  , hostDisplayName = host.hostId
   }
 
 myRaid : Chat.Line -> Raid
@@ -603,18 +593,16 @@ httpResponse source success result =
 
 fetchHostsUrl : String -> String
 fetchHostsUrl id =
-  "https://p3szakkejk.execute-api.us-east-1.amazonaws.com/production/hosts?include_logins=1&target=" ++ id
+  "https://api.twitch.tv/kraken/channels/"++id++"/hosts"
 
-fetchHosts : String -> Cmd Msg
-fetchHosts id =
-  Http.request
-    { method = "GET"
-    , headers = []
-    , url = fetchHostsUrl id
-    , body = Http.emptyBody
-    , expect = Http.expectJson (httpResponse "hosts" Hosts) Tmi.hostingTarget
-    , timeout = Nothing
-    , tracker = Nothing
+fetchHosts : String -> String -> Cmd Msg
+fetchHosts auth id =
+  Kraken.send <|
+    { clientId = TwitchId.clientId
+    , auth = Just auth
+    , decoder = Kraken.hosts
+    , tagger = httpResponse "hosts" Hosts
+    , url = (fetchHostsUrl id)
     }
 
 myFollow : Helix.Follow -> Follow
@@ -730,7 +718,6 @@ extractHashArgument key location =
 createQueryString : Model -> List Url.QueryParameter
 createQueryString model =
   [ Maybe.map (Url.string "userId") model.userId
-  , Maybe.map (Url.string "login") model.login
   ]
     |> List.filterMap identity
 

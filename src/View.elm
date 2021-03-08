@@ -98,7 +98,7 @@ view model =
         ]
       ] <|
       column [ height fill, width fill, clip, inFront (displayFooter model) ]
-        [ if model.login == Nothing && model.userId == Nothing then
+        [ if model.userId == Nothing then
             column
               [ width fill
               , spacing (headingSpacing model.windowHeight)

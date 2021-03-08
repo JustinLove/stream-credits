@@ -11,7 +11,7 @@ import Json.Decode exposing (..)
 
     Helix.Paginated cursor data
 -}
-type Paginated a = Paginated String a
+type Paginated a = Paginated (Maybe String) a
 
 {-| Json Decoder for extracting the cursor along with the data
 
@@ -20,5 +20,5 @@ type Paginated a = Paginated String a
 paginated : Decoder a -> Decoder (Paginated a)
 paginated decoder =
   map2 Paginated
-    (field "pagination" (field "cursor" string))
+    (field "pagination" (maybe (field "cursor" string)))
     decoder
