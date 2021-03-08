@@ -40,7 +40,7 @@ type Msg
   | FrameStep Float
   | HttpError String Http.Error
   | Hosts (List Kraken.Host)
-  | User (List Helix.User)
+  | UserNames (List Helix.User)
   | Self (List Helix.User)
   | Follows (List Helix.Follow)
   | Subscriptions Int (Helix.Paginated (List Helix.Subscription))
@@ -218,11 +218,28 @@ update msg model =
     HttpError source (error) ->
       let _ = Debug.log ("fetch error: " ++ source) error in
       (model, Cmd.none)
-    User (user::_) ->
+    UserNames [] ->
+      let _ = Debug.log "name lookup did not find any user" "" in
+      (model, Cmd.none)
+    UserNames users ->
+      ( { model
+        | hosts = model.hosts
+          |> List.map (\host -> List.foldl (\user accum ->
+            if user.id == accum.hostId then
+              {hostId = user.id, hostDisplayName = user.displayName}
+            else
+              accum
+            ) host users
+          )
+        }
+      , Cmd.none
+      )
+    Self (user::_) ->
       let
         m2 =
           { model
           | userId = Just user.id
+          , authLogin = Just user.login
           , cheers =
               if (Just user.id) /= model.userId then
                 Dict.empty
@@ -246,17 +263,6 @@ update msg model =
         else
           Cmd.none
       )
-    User _ ->
-      let _ = Debug.log "user did not find that login name" "" in
-      (model, Cmd.none)
-    Self (user::_) ->
-      let
-        m2 =
-          { model
-          | authLogin = Just user.login
-          }
-      in
-        update (User [user]) m2
     Self _ ->
       let _ = Debug.log "self lookup did not find a user" "" in
       (model, Cmd.none)
@@ -264,7 +270,9 @@ update msg model =
       ( { model
         | hosts = List.map myHost twitchHosts
         }
-      , Cmd.none
+      , case model.auth of
+          Just auth -> fetchUsersById auth (List.map .hostId twitchHosts)
+          Nothing -> Cmd.none
       )
     Follows twitchFollows ->
       let
@@ -661,19 +669,22 @@ fetchBitsLeaderboard auth =
     , url = fetchBitsLeaderboardUrl
     }
 
-fetchUserByNameUrl : String -> String
-fetchUserByNameUrl login =
-  "https://api.twitch.tv/helix/users?login=" ++ login
+fetchUsersByIdUrl : List String -> String
+fetchUsersByIdUrl ids =
+  "https://api.twitch.tv/helix/users?id=" ++ (String.join "&id=" ids)
 
-fetchUserByName : String -> String -> Cmd Msg
-fetchUserByName auth login =
-  Helix.send <|
-    { clientId = TwitchId.clientId
-    , auth = auth
-    , decoder = Helix.users
-    , tagger = httpResponse "user" User
-    , url = (fetchUserByNameUrl login)
-    }
+fetchUsersById : String -> List String -> Cmd Msg
+fetchUsersById auth ids =
+  if List.isEmpty ids then
+    Cmd.none
+  else
+    Helix.send <|
+      { clientId = TwitchId.clientId
+      , auth = auth
+      , decoder = Helix.users
+      , tagger = httpResponse "UserNames" UserNames
+      , url = (fetchUsersByIdUrl ids)
+      }
 
 fetchSelfUrl : String
 fetchSelfUrl =
