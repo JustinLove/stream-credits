@@ -1,5 +1,7 @@
 module StreamCredits exposing (..)
 
+import Decode
+import Log
 import ObsStudio
 import Pagination as Helix
 import PortSocket
@@ -14,14 +16,14 @@ import Browser.Navigation as Navigation
 import Dict exposing (Dict)
 import Http
 import Json.Decode as Decode
+import Json.Encode as Encode
 import Parser.Advanced as Parser
 import Platform.Sub
 import Task
 import Time exposing (Posix)
-import Twitch.Helix as Helix
-import Twitch.Helix.Decode as Helix
-import Twitch.Kraken as Kraken
-import Twitch.Kraken.Decode as Kraken
+import Twitch.Helix exposing (UserId)
+import Twitch.Helix.Request as Helix
+import Twitch.Kraken.Request as Kraken
 import TwitchId
 import Url exposing (Url)
 import Url.Builder as Url
@@ -39,13 +41,13 @@ type Msg
   | Visibility Browser.Events.Visibility
   | FrameStep Float
   | HttpError String Http.Error
-  | Hosts (List Kraken.Host)
-  | UserNames (List Helix.User)
-  | Self (List Helix.User)
-  | Follows (List Helix.Follow)
-  | Subscriptions Int (Helix.Paginated (List Helix.Subscription))
-  | BitsLeaderboard (List Helix.BitsLeader)
-  | CurrentStream (List Helix.Stream)
+  | Hosts (List UserId)
+  | UserNames (List Decode.User)
+  | Self (List Decode.User)
+  | Follows (List Follow)
+  | Subscriptions Int (Helix.Paginated (List Sub))
+  | BitsLeaderboard (List Cheer)
+  | CurrentStream (List Int)
   | SocketEvent PortSocket.Id PortSocket.Event
   | Reconnect Posix
 
@@ -114,13 +116,12 @@ init flags location key =
       , currentFollows = []
       , streamStart = 0
       }
-      --|> update (Subscriptions ((Decode.decodeString Kraken.subscriptions Kraken.sampleSubscriptions) |> Result.mapError (always Http.NetworkError))) |> Tuple.first
-      --|> update (BitsLeaderboard ((Decode.decodeString Helix.bitsLeaderboard Helix.sampleBitsLeaderboard) |> Result.mapError (always Http.NetworkError))) |> Tuple.first
       --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleResubMessage)) |> Tuple.first
       --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleGiftedSubMessage)) |> Tuple.first
       --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleAnonGiftedSubMessage)) |> Tuple.first
       --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleBitsChatMessage)) |> Tuple.first
       --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleRaidedMessage)) |> Tuple.first
+      --|> update (SocketEvent 0 (PortSocket.Message Chat.sampleHostTargetMessage)) |> Tuple.first
     (m2, argCmds) = update (CurrentUrl location) initialModel
   in
   (m2, Cmd.batch 
@@ -213,14 +214,11 @@ update msg model =
     Navigate (Browser.External url) ->
       (model, Navigation.load url)
     HttpError source (Http.BadStatus 401) ->
-      let _ = Debug.log ("fetch auth error: " ++ source) "" in
-      (logout model, Cmd.none)
+      (logout model, Log.warn ("fetch auth error: " ++ source))
     HttpError source (error) ->
-      let _ = Debug.log ("fetch error: " ++ source) error in
-      (model, Cmd.none)
+      (model, Log.httpError ("fetch error: " ++ source) error)
     UserNames [] ->
-      let _ = Debug.log "name lookup did not find any user" "" in
-      (model, Cmd.none)
+      (model, Log.warn "name lookup did not find any user")
     UserNames users ->
       ( { model
         | hosts = model.hosts
@@ -264,54 +262,41 @@ update msg model =
           Cmd.none
       )
     Self _ ->
-      let _ = Debug.log "self lookup did not find a user" "" in
-      (model, Cmd.none)
-    Hosts twitchHosts ->
+      (model, Log.warn "self lookup did not find a user")
+    Hosts hosts ->
       ( { model
-        | hosts = List.map myHost twitchHosts
+        | hosts = List.map (\id -> Host id id) hosts
         }
       , case model.auth of
-          Just auth -> fetchUsersById auth (List.map .hostId twitchHosts)
+          Just auth -> fetchUsersById auth hosts
           Nothing -> Cmd.none
       )
-    Follows twitchFollows ->
-      let
-        follows = List.map myFollow twitchFollows
-      in
+    Follows follows ->
       ( { model
         | follows = follows
         , currentFollows = List.filter (\follow -> follow.followedAt > model.streamStart) follows
         }
       , Cmd.none
       )
-    Subscriptions offset (Helix.Paginated cursor twitchSubscriptions) ->
-      let
-        subscribers = List.map mySubscription twitchSubscriptions
-      in
-        ( if offset == 0 then
-            { model | subscribers = subscribers }
-          else
-            { model | subscribers = List.append model.subscribers subscribers }
-        , if List.isEmpty subscribers || cursor == Nothing then
-            Cmd.none
-          else
-            case (model.auth, model.userId) of
-              (Just auth, Just id) ->
-                fetchSubscriptions auth id (offset + (List.length subscribers)) cursor
-              _ ->
-                Cmd.none
-        )
-    BitsLeaderboard twitchBitsLeaderboard ->
-      let
-        leaders = List.map myBitsLeader twitchBitsLeaderboard
-      in
+    Subscriptions offset (Helix.Paginated cursor subscribers) ->
+      ( if offset == 0 then
+          { model | subscribers = subscribers }
+        else
+          { model | subscribers = List.append model.subscribers subscribers }
+      , if List.isEmpty subscribers || cursor == Nothing then
+          Cmd.none
+        else
+          case (model.auth, model.userId) of
+            (Just auth, Just id) ->
+              fetchSubscriptions auth id (offset + (List.length subscribers)) cursor
+            _ ->
+              Cmd.none
+      )
+    BitsLeaderboard leaders ->
       ( { model | bitsLeaders = leaders }
       , Cmd.none
       )
-    CurrentStream (stream::_) ->
-      let
-        start = (Time.posixToMillis stream.startedAt)
-      in
+    CurrentStream (start::_) ->
       ( { model
         | streamStart = start
         , currentFollows = List.filter (\follow -> follow.followedAt > start) model.follows
@@ -319,28 +304,33 @@ update msg model =
       , Cmd.none
       )
     CurrentStream _ ->
-      let _ = Debug.log "no stream, not live?" "" in
       ( { model
         | streamStart = 0
         }
-      , Cmd.none
+      , Log.info "no stream, not live?"
       )
     SocketEvent id (PortSocket.Error value) ->
-      let _ = Debug.log "websocket error" value in
-      (model, Cmd.none)
+      ( model
+      , Log.error "websocket error" value
+      )
     SocketEvent id (PortSocket.Open url) ->
-      let _ = Debug.log "websocket open" id in
-        ({model | ircConnection = Connected id}, PortSocket.send id ("NICK justinfan" ++ (String.fromInt (modBy 1000000 (Time.posixToMillis model.time)))))
+      ( {model | ircConnection = Connected id}
+      , Cmd.batch
+        [ PortSocket.send id ("NICK justinfan" ++ (String.fromInt (modBy 1000000 (Time.posixToMillis model.time))))
+        --, Log.info ("websocket open " ++ (String.fromInt id))
+        ]
+      )
     SocketEvent id (PortSocket.Close url) ->
-      let _ = Debug.log "websocket closed" id in
+      --let log = Log.info ("websocket closed " ++ (String.fromInt id)) in
+      let log = Cmd.none in
       case model.ircConnection of
         Disconnected ->
-          (model, Cmd.none)
+          (model, log)
         Connecting _ timeout ->
-          (model, Cmd.none)
+          (model, log)
         _ ->
           ( {model | ircConnection = Connecting twitchIrc 1000}
-          , Cmd.none
+          , log
           )
     SocketEvent id (PortSocket.Message message) ->
       --let _ = Debug.log "websocket message" message in
@@ -348,32 +338,48 @@ update msg model =
         Ok lines ->
           List.foldl (reduce (chatResponse id message)) (model, Cmd.none) lines
         Err err ->
-          let _ = Debug.log message err in
-          (model, Cmd.none)
+          (model, parseError message err)
     Reconnect time ->
-      case Debug.log "reconnect" model.ircConnection of
+      case model.ircConnection of
         Connecting url timeout ->
           ( {model | ircConnection = Connecting url (timeout*2)}
-          , PortSocket.connect url
+          , Cmd.batch
+            [ PortSocket.connect url
+            , Log.info "reconnect"
+            ]
           )
         _ ->
           (model, Cmd.none)
 
 chatResponse : PortSocket.Id -> String -> Chat.Line -> Model -> (Model, Cmd Msg)
 chatResponse id message line model =
-  let
-    _ = line.tags
-      |> List.map (\tag -> case tag of 
-        Chat.UnknownTag _ _ ->
-          Debug.log message tag
-        _ -> tag
-      )
-  in
+  reduce (chatCommandResponse id message) line (model, collectUnknownTags message line)
+
+collectUnknownTags : String -> Chat.Line -> Cmd Msg
+collectUnknownTags message line =
+  line.tags
+    |> List.filterMap (\tag -> case tag of 
+      Chat.UnknownTag key value ->
+        Cmd.batch
+          [ ("unknown tag" ++ key ++ "=" ++ value)
+            |> Log.info
+          , Log.info message
+          ]
+          |> Just
+      _ -> Nothing
+    )
+    |> Cmd.batch
+
+chatCommandResponse : PortSocket.Id -> String -> Chat.Line -> Model -> (Model, Cmd Msg)
+chatCommandResponse id message line model =
   case line.command of
     "CAP" -> (model, Cmd.none)
     "HOSTTARGET" ->
-      let _ = Debug.log "hosttarget" line in
-      (model, Cmd.none)
+      ( model
+      , ("hosttarget" :: line.params)
+        |> String.join " "
+        |> Log.info
+      )
     "JOIN" ->
       let
           user = line.prefix
@@ -412,7 +418,7 @@ chatResponse id message line model =
         (model, Cmd.none)
     "ROOMSTATE" -> (model, Cmd.none)
     "USERNOTICE" ->
-      let _ = Debug.log "usernotice" line in
+      --let _ = Debug.log "usernotice" line in
       let
         msgId = line.tags
           |> List.filterMap (\tag -> case tag of 
@@ -439,8 +445,7 @@ chatResponse id message line model =
           let sub = mySub line in
           ( combineSubs {sub | displayName = "anonymous"} model, Cmd.none )
         Chat.UnknownNotice name -> 
-          let _ = Debug.log "unknown notice" name in
-          (model, Cmd.none)
+          (model, Log.warn ("unknown notice " ++ name))
         _ -> 
           (model, Cmd.none)
     "001" -> (model, Cmd.none)
@@ -449,8 +454,14 @@ chatResponse id message line model =
     "004" -> (model, Cmd.none)
     "353" -> (model, Cmd.none) --names list
     "366" -> -- end of names list
-      let _ = Debug.log "joined room" (List.head (List.drop 1 line.params)) in
-      (model, Cmd.none)
+      ( model
+      , line.params
+        |> List.drop 1
+        |> List.head
+        |> Maybe.withDefault "unknown"
+        |> (\s -> "joined room " ++ s)
+        |> Log.info
+      )
     "375" -> (model, Cmd.none)
     "372" -> (model, Cmd.none)
     "376" -> 
@@ -462,8 +473,7 @@ chatResponse id message line model =
         ]
       )
     _ ->
-      let _ = Debug.log message line in
-      (model, Cmd.none)
+      (model, unknownMessage message line)
 
 combineSubs : Sub -> Model -> Model
 combineSubs sub model =
@@ -539,12 +549,6 @@ subscriptions model =
         _ -> Sub.none
     ]
 
-myHost : Kraken.Host -> Host
-myHost host =
-  { hostId = host.hostId
-  , hostDisplayName = host.hostId
-  }
-
 myRaid : Chat.Line -> Raid
 myRaid line =
   List.foldl (\tag raid ->
@@ -564,13 +568,6 @@ myCheer line =
         Chat.Bits amount -> {cheer | amount = amount}
         _ -> cheer
     ) (Cheer "" "" 0) line.tags
-
-myBitsLeader : Helix.BitsLeader -> Cheer
-myBitsLeader leader =
-  { userId = leader.userId
-  , displayName = leader.userName
-  , amount = leader.score
-  }
 
 mySub : Chat.Line -> Sub
 mySub line =
@@ -608,16 +605,10 @@ fetchHosts auth id =
   Kraken.send <|
     { clientId = TwitchId.clientId
     , auth = Just auth
-    , decoder = Kraken.hosts
+    , decoder = Decode.hosts
     , tagger = httpResponse "hosts" Hosts
     , url = (fetchHostsUrl id)
     }
-
-myFollow : Helix.Follow -> Follow
-myFollow follow =
-  { fromName = follow.fromName
-  , followedAt = Time.posixToMillis follow.followedAt
-  }
 
 fetchFollowsUrl : String -> String
 fetchFollowsUrl id =
@@ -628,18 +619,10 @@ fetchFollows auth id =
   Helix.send <|
     { clientId = TwitchId.clientId
     , auth = auth
-    , decoder = Helix.follows
+    , decoder = Decode.follows
     , tagger = httpResponse "follows" Follows
     , url = (fetchFollowsUrl id)
     }
-
-mySubscription : Helix.Subscription -> Sub
-mySubscription sub =
-  { userId = sub.userId
-  , displayName = sub.userName
-  , months = 0
-  , points = planPoints sub.tier
-  }
 
 fetchSubscriptionsUrl : String -> Maybe String -> String
 fetchSubscriptionsUrl id cursor =
@@ -650,7 +633,7 @@ fetchSubscriptions auth id offset cursor =
   Helix.send <|
     { clientId = TwitchId.clientId
     , auth = auth
-    , decoder = Helix.paginated Helix.subscriptions
+    , decoder = Helix.paginated Decode.subs
     , tagger = httpResponse "subscriptions" (Subscriptions offset)
     , url = (fetchSubscriptionsUrl id cursor)
     }
@@ -664,7 +647,7 @@ fetchBitsLeaderboard auth =
   Helix.send <|
     { clientId = TwitchId.clientId
     , auth = auth
-    , decoder = Helix.bitsLeaderboard
+    , decoder = Decode.bitsLeaderboard
     , tagger = httpResponse "bits leaderboard" BitsLeaderboard
     , url = fetchBitsLeaderboardUrl
     }
@@ -681,7 +664,7 @@ fetchUsersById auth ids =
     Helix.send <|
       { clientId = TwitchId.clientId
       , auth = auth
-      , decoder = Helix.users
+      , decoder = Decode.users
       , tagger = httpResponse "UserNames" UserNames
       , url = (fetchUsersByIdUrl ids)
       }
@@ -695,7 +678,7 @@ fetchSelf auth =
   Helix.send <|
     { clientId = TwitchId.clientId
     , auth = auth
-    , decoder = Helix.users
+    , decoder = Decode.users
     , tagger = httpResponse "self" Self
     , url = fetchSelfUrl
     }
@@ -709,7 +692,7 @@ fetchStreamById auth id =
   Helix.send <|
     { clientId = TwitchId.clientId
     , auth = auth
-    , decoder = Helix.streams
+    , decoder = Decode.streamTimes
     , tagger = httpResponse "streams" CurrentStream
     , url = (fetchStreamByIdUrl id)
     }
@@ -735,3 +718,17 @@ createQueryString model =
 createPath : Model -> String
 createPath model =
   Url.custom Url.Relative [] (createQueryString model) (Maybe.map (\token -> "access_token=" ++ token) model.auth)
+
+parseError message error = Log.error message (Encode.string (Chat.deadEndsToString error))
+
+unknownMessage : String -> Chat.Line -> Cmd Msg
+unknownMessage message line =
+  Log.debug message (encodeLine line)
+
+encodeLine : Chat.Line -> Encode.Value
+encodeLine line =
+  Encode.object
+    [ ("prefix", line.prefix |> Maybe.map Encode.string |> Maybe.withDefault Encode.null)
+    , ("command", Encode.string line.command)
+    , ("params", Encode.list Encode.string line.params)
+    ]

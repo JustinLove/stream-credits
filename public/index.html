@@ -15,6 +15,7 @@
 "use strict";
 var app = Elm.StreamCredits.init()
 
+// ------------------ PortSocket ------------------
 var command = function(message) {
   //console.log(message)
   var ws
@@ -67,6 +68,7 @@ var connect = function(address) {
   ws.onopen = function() {
     //console.log('js websocket opened')
     app.ports.webSocketReceive.send({kind: "open", id: ws.id, url: address})
+    //app.ports.webSocketReceive.send({kind: "message", id: ws.id, message: "dlskfjalsjkf"})
   }
 
   ws.onclose = function() {
@@ -86,6 +88,7 @@ if (app.ports.webSocketCommand) {
   app.ports.webSocketCommand.subscribe(command)
 }
 
+// ------------------ ObjStudio ------------------
 if (window.obsstudio
     && app.ports.obsStudioOnVisibilityChange) {
   window.obsstudio.onActiveChange = function(visible) {
@@ -93,6 +96,33 @@ if (window.obsstudio
   }
 }
 
+// ------------------ Log ------------------
+var logCommand = function(message) {
+  switch(message.kind) {
+    case 'debug':
+      console.debug(message.note, message.value)
+      break
+    case 'log':
+      console.log(message.note)
+      break
+    case 'info':
+      console.info(message.note)
+      break
+    case 'warn':
+      console.warn(message.note)
+      break
+    case 'error':
+      console.error(message.note, message.value)
+      break
+    default:
+      console.log('unknown message', message)
+      break;
+  }
+}
+
+if (app.ports.logCommand) {
+  app.ports.logCommand.subscribe(logCommand)
+}
 </script>
 
 </html>

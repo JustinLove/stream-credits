@@ -34,9 +34,14 @@ receive tagger =
 
 decodeReceive : Value -> (Id, Event)
 decodeReceive thing =
-  decodeValue idEvent thing
-    |> Result.mapError (Debug.log "websocket decode error")
-    |> Result.withDefault (0, Error Encode.null)
+  case decodeValue idEvent thing of
+    Ok result -> result
+    Err err ->
+      err
+        --|> Debug.log "websocket decode error"
+        |> errorToString
+        |> Encode.string
+        |> (\e -> (0, Error e))
 
 type alias Id = Int
 
