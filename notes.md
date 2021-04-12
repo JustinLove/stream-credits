@@ -1,3 +1,2 @@
-- may need: https://api.twitch.tv/kraken/channels/CHANNELID/hosts
-- https://obsproject.com/tools/browser-drag-and-drop
 - other caps to try and get hosts - test HOSTTARGET first
+- https://obsproject.com/tools/browser-drag-and-drop

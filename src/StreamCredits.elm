@@ -23,7 +23,6 @@ import Task
 import Time exposing (Posix)
 import Twitch.Helix exposing (UserId)
 import Twitch.Helix.Request as Helix
-import Twitch.Kraken.Request as Kraken
 import TwitchId
 import Url exposing (Url)
 import Url.Builder as Url
@@ -524,8 +523,8 @@ refresh auth mUserId =
   case mUserId of
     Just id ->
       Cmd.batch
-        [ fetchHosts auth id
-        , fetchFollows auth id
+        --[ fetchHosts auth id
+        [ fetchFollows auth id
         , fetchSubscriptions auth id 0 Nothing
         , fetchBitsLeaderboard auth
         , fetchStreamById auth id
@@ -595,20 +594,6 @@ httpResponse source success result =
   case result of
     Ok value -> success value
     Err err -> HttpError source err
-
-fetchHostsUrl : String -> String
-fetchHostsUrl id =
-  "https://api.twitch.tv/kraken/channels/"++id++"/hosts"
-
-fetchHosts : String -> String -> Cmd Msg
-fetchHosts auth id =
-  Kraken.send <|
-    { clientId = TwitchId.clientId
-    , auth = Just auth
-    , decoder = Decode.hosts
-    , tagger = httpResponse "hosts" Hosts
-    , url = (fetchHostsUrl id)
-    }
 
 fetchFollowsUrl : String -> String
 fetchFollowsUrl id =
